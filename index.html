@@ -28,10 +28,11 @@ body.dark .hamburger span{background:#ccc}
 body.dark .btn-secondary{background:#1a1d27}
 .night-btn{
   position:fixed;top:max(14px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));
-  width:42px;height:42px;border:1px solid var(--border);background:var(--card);border-radius:10px;
-  z-index:200;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;
-  box-shadow:var(--shadow)
+  width:44px;height:44px;border:1px solid var(--border);background:var(--card);border-radius:50%;
+  z-index:200;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow);padding:0;line-height:1
 }
+.night-btn.hidden{display:none!important}
 .opt.correct,.opt.wrong{color:var(--text)!important}
 .opt.correct span,.opt.wrong span{color:inherit}
 .q-card .q-text{color:var(--text)!important}
@@ -46,7 +47,16 @@ body.dark .opt.wrong{color:#fecaca!important}
 .page.top{justify-content:flex-start;align-items:stretch}
 .logo{font-size:36px;font-weight:800;color:var(--primary2);margin-bottom:6px}
 .subtitle{color:var(--muted);font-size:13px;margin-bottom:28px}
-.home-buttons{display:flex;flex-direction:column;gap:12px;width:100%;max-width:300px}
+.home-buttons{display:flex;flex-direction:column;gap:12px;width:100%;max-width:300px;margin:auto}
+#homePage.page.active,#userMainPage.page.active,#managerPage.page.active,#adminPage.page.active{
+  justify-content:center;min-height:100vh;min-height:100dvh
+}
+#userMainPage .topbar-mini,#managerPage .topbar-mini,#adminPage .topbar-mini{
+  position:absolute;top:max(14px,env(safe-area-inset-top));left:0;right:0;margin:0 auto
+}
+#userMainPage,#managerPage,#adminPage{position:relative;padding-top:72px}
+#userMainPage .grid-btns,#managerPage .grid-btns,#adminPage .grid-btns{margin-top:12px}
+
 .btn{padding:13px 22px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;width:100%}
 .btn-primary{background:var(--primary);color:#fff}
 .btn-secondary{background:#fff;color:var(--primary2);border:1px solid var(--border)}
@@ -123,10 +133,13 @@ body.dark .opt.wrong{color:#fecaca!important}
 .toast.ok{background:#059669}
 .toast.err{background:#dc2626}
 .exam-header{
-  position:sticky;top:0;background:rgba(244,246,251,.95);backdrop-filter:blur(8px);padding:12px 0;z-index:10;border-bottom:1px solid var(--border);margin-bottom:14px
+  position:sticky;top:0;background:color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter:blur(10px);padding:12px 0;z-index:10;
+  border-bottom:1px solid var(--border);margin-bottom:14px;color:var(--text)
 }
+.exam-header strong,.exam-header #takeExamName{color:var(--text)!important}
 .exam-stats{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;font-size:13px}
-.exam-stats span{padding:4px 10px;border-radius:8px;background:var(--card)}
+.exam-stats span{padding:4px 10px;border-radius:8px;background:var(--card);color:var(--text);border:1px solid var(--border)}
 .exam-stats .ok{color:var(--ok)}
 .exam-stats .err{color:var(--err)}
 .exam-stats .time{color:var(--warn);font-weight:700}
@@ -154,13 +167,24 @@ body.dark .opt.wrong{color:#fecaca!important}
 .modal h3{margin-bottom:10px;color:var(--primary2)}
 .modal p{font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5}
 .q-edit{border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px;background:#f8fafc}
+.q-edit textarea{
+  min-height:80px;max-height:none!important;overflow:hidden!important;resize:none;
+  field-sizing:content;height:auto
+}
+.q-edit.disabled-q{opacity:.55;border-style:dashed}
+
 .q-edit .rm{float:left}
 .loading{text-align:center;color:var(--muted);padding:30px}
 .empty{text-align:center;color:var(--muted);padding:24px;font-size:13px}
 .chip{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;background:rgba(108,92,231,.2);color:var(--primary2)}
 .chip.off{background:rgba(255,255,255,.06);color:var(--muted)}
 .chip.both{background:rgba(0,184,148,.15);color:#55efc4}
-.topbar-mini{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;max-width:560px;width:100%;margin-left:auto;margin-right:auto}
+.topbar-mini{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  margin-bottom:16px;max-width:560px;width:100%;margin-left:auto;margin-right:auto;
+  padding-left:56px;padding-right:8px;box-sizing:border-box
+}
+.topbar-mini .btn{flex-shrink:0;position:relative;z-index:5}
 
 .review-unanswered{border:1px dashed var(--warn)!important;background:rgba(217,119,6,.06)}
 .correct-tick{display:inline-block;margin-right:6px}
@@ -168,6 +192,22 @@ body.dark .opt.wrong{color:#fecaca!important}
 .radio-opt input{width:18px;height:18px;accent-color:var(--primary);flex-shrink:0}
 .radio-opt input[type=text]{flex:1;width:auto;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:#f8fafc;color:var(--text)}
 body.dark .radio-opt input[type=text]{background:#12141c}
+
+.rename-backdrop{
+  display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:600;
+  align-items:center;justify-content:center;padding:20px;
+  opacity:0;transition:opacity .25s ease
+}
+.rename-backdrop.show{display:flex;opacity:1}
+.rename-box{
+  background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px;
+  width:100%;max-width:360px;box-shadow:var(--shadow);
+  transform:translateY(16px) scale(.96);opacity:0;
+  transition:transform .28s cubic-bezier(.2,.8,.2,1),opacity .28s ease
+}
+.rename-backdrop.show .rename-box{transform:translateY(0) scale(1);opacity:1}
+.rename-box h3{margin:0 0 6px;color:var(--primary2);font-size:17px;text-align:center}
+.rename-box p{font-size:12px;color:var(--muted);text-align:center;margin-bottom:14px}
 </style>
 </head>
 <body>
@@ -181,7 +221,7 @@ body.dark .radio-opt input[type=text]{background:#12141c}
 
 <!-- HOME -->
 <div class="page active" id="homePage">
-  <div class="home-buttons" style="margin-top:40px">
+  <div class="home-buttons">
     <button class="btn btn-primary" onclick="showPage('loginPage')">ورود</button>
     <button class="btn btn-secondary" onclick="openRegister()">ثبت نام</button>
   </div>
@@ -459,6 +499,17 @@ body.dark .radio-opt input[type=text]{background:#12141c}
   </div>
 </div>
 
+<div class="rename-backdrop" id="renameModal">
+  <div class="rename-box">
+    <h3>تغییر نام آزمون</h3>
+    <p>نام جدید را وارد کنید</p>
+    <div class="input-group"><input type="text" id="renameInput" placeholder="نام آزمون"></div>
+    <div class="form-buttons">
+      <button class="btn btn-secondary" onclick="closeRenameModal()">انصراف</button>
+      <button class="btn btn-primary" onclick="confirmRenameExam()">ذخیره</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -599,6 +650,9 @@ function showPage(id){
   if(el) el.classList.add('active');
   const ham=document.getElementById('mainHam');
   if(ham) ham.classList.toggle('hidden', id!=='homePage');
+  const night=document.getElementById('nightBtn');
+  const nightPages={homePage:1,userMainPage:1,managerPage:1,adminPage:1};
+  if(night) night.classList.toggle('hidden', !nightPages[id]);
   closeMenu();
 }
 function toggleNight(){
@@ -979,11 +1033,28 @@ async function toggleExamEnabled(id, on){
   try{ await sbUpdate('exams','id=eq.'+id,{ enabled: !!on }); toast(on?'فعال شد':'غیرفعال شد','ok'); }
   catch(e){ toast('خطا','err'); }
 }
-async function editExamName(id){
-  const name=prompt('نام جدید آزمون:');
-  if(!name||!name.trim()) return;
-  try{ await sbUpdate('exams','id=eq.'+id,{ name: name.trim() }); openManageExams(); }
-  catch(e){ toast('خطا','err'); }
+let _renameExamId=null;
+function editExamName(id){
+  _renameExamId=id;
+  const inp=document.getElementById('renameInput');
+  if(inp){ inp.value=''; setTimeout(()=>inp.focus(),280); }
+  const m=document.getElementById('renameModal');
+  m.classList.add('show');
+}
+function closeRenameModal(){
+  document.getElementById('renameModal').classList.remove('show');
+  _renameExamId=null;
+}
+async function confirmRenameExam(){
+  const name=(document.getElementById('renameInput').value||'').trim();
+  if(!name){ toast('نام را وارد کنید','err'); return; }
+  if(!_renameExamId) return;
+  try{
+    await sbUpdate('exams','id=eq.'+_renameExamId,{ name: name });
+    closeRenameModal();
+    toast('نام تغییر کرد','ok');
+    openManageExams();
+  }catch(e){ toast('خطا','err'); }
 }
 async function deleteExam(id){
   if(!confirm('حذف این آزمون؟')) return;
@@ -997,7 +1068,7 @@ async function createNewExam(){
       type:'both',
       enabled:true,
       time_limit:15,
-      questions:[{ text:'سوال نمونه؟', options:['گزینه ۱','گزینه ۲','گزینه ۳'], correct:0 }]
+      questions:[{ text:'', options:['','',''], correct:0, enabled:true }]
     });
     const id=rows&&rows[0]&&rows[0].id;
     if(id) openEditExam(id);
@@ -1026,22 +1097,49 @@ function renderQuestionEditors(qs){
   box.innerHTML=(qs||[]).map((q,i)=>{
     const opts=q.options||['','',''];
     while(opts.length<3) opts.push('');
+    const en = q.enabled !== false;
     const optInputs=opts.map((o,j)=>`
       <div class="radio-opt">
         <input type="radio" name="correct_${i}" data-qcorrect-radio="${i}" value="${j}" ${q.correct===j?'checked':''} title="پاسخ صحیح">
-        <input type="text" data-q="${i}" data-opt="${j}" value="${escapeHtml(o)}" dir="auto" placeholder="گزینه ${j+1}">
+        <input type="text" data-q="${i}" data-opt="${j}" value="${escapeHtml(o)}" dir="auto" placeholder="">
       </div>
     `).join('');
-    return `<div class="q-edit" data-qi="${i}">
-      <button type="button" class="btn btn-danger btn-sm rm" onclick="removeQuestionEditor(${i})">حذف سوال</button>
-      <div class="input-group"><label>متن سوال ${i+1}</label>
-        <textarea data-qtext="${i}" dir="auto">${escapeHtml(q.text||'')}</textarea>
+    return `<div class="q-edit ${en?'':'disabled-q'}" data-qi="${i}">
+      <div class="row-between" style="margin-bottom:8px">
+        <span style="font-size:13px;color:var(--muted)">سوال ${i+1}</span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:12px;color:var(--muted)">${en?'فعال':'غیرفعال'}</span>
+          <label class="switch" title="فعال/غیرفعال">
+            <input type="checkbox" data-qenabled="${i}" ${en?'checked':''} onchange="toggleQuestionEnabled(${i}, this.checked)">
+            <span class="slider"></span>
+          </label>
+          <button type="button" class="btn btn-danger btn-sm" onclick="removeQuestionEditor(${i})">حذف</button>
+        </div>
+      </div>
+      <div class="input-group"><label>متن سوال</label>
+        <textarea data-qtext="${i}" dir="auto" placeholder="" oninput="autoGrowArea(this)">${escapeHtml(q.text||'')}</textarea>
       </div>
       <div class="hint" style="margin-bottom:8px">تیک کنار گزینه = پاسخ صحیح (فقط یکی)</div>
       ${optInputs}
       <button type="button" class="btn btn-secondary btn-sm" onclick="addOptionToQuestion(${i})">＋ گزینه</button>
     </div>`;
   }).join('');
+  box.querySelectorAll('textarea[data-qtext]').forEach(function(ta){ autoGrowArea(ta); });
+}
+function autoGrowArea(el){
+  if(!el) return;
+  el.style.height='auto';
+  el.style.height=(el.scrollHeight)+'px';
+  el.style.overflow='hidden';
+}
+function toggleQuestionEnabled(i, on){
+  const qs=collectQuestionsFromEditors();
+  if(qs[i]) qs[i].enabled = !!on;
+  // حفظ وضعیت enabled حتی در collect
+  renderQuestionEditors(qs.map(function(q,idx){
+    if(idx===i) q.enabled = !!on;
+    return q;
+  }));
 }
 
 function collectQuestionsFromEditors(){
@@ -1052,7 +1150,8 @@ function collectQuestionsFromEditors(){
     const options=optInputs.map(i=>i.value.trim());
     const radio=block.querySelector('input[data-qcorrect-radio]:checked');
     let correct=radio ? parseInt(radio.value,10) : 0;
-    // فیلتر گزینه‌های خالی و تنظیم correct
+    const enEl=block.querySelector('input[data-qenabled]');
+    const enabled = enEl ? !!enEl.checked : true;
     const kept=[];
     let newCorrect=0;
     options.forEach(function(o,idx){
@@ -1060,14 +1159,19 @@ function collectQuestionsFromEditors(){
       if(idx===correct) newCorrect=kept.length;
       kept.push(o);
     });
-    if(!kept.length) return null;
-    return { text: text.trim(), options: kept, correct: newCorrect };
-  }).filter(q=>q && q.text && q.options.length>=2);
+    // هنگام ویرایش، سوال خالی را هم نگه می‌داریم تا مدیر بتواند پر کند
+    return {
+      text: text.trim(),
+      options: kept.length ? kept : options.map(function(){return '';}).slice(0, Math.max(3, options.length)),
+      correct: kept.length ? newCorrect : correct,
+      enabled: enabled
+    };
+  });
 }
 
 function addQuestionEditor(){
   const qs=collectQuestionsFromEditors();
-  qs.push({ text:'', options:['','',''], correct:0 });
+  qs.push({ text:'', options:['','',''], correct:0, enabled:true });
   renderQuestionEditors(qs);
 }
 function removeQuestionEditor(i){
@@ -1088,12 +1192,14 @@ async function saveExamEdit(){
   const time=parseInt(document.getElementById('editExamTime').value||'0',10);
   const type=document.getElementById('editExamType').value;
   const enabled=document.getElementById('editExamEnabled').checked;
-  const questions=collectQuestionsFromEditors();
+  const raw=collectQuestionsFromEditors();
+  const questions=raw.filter(function(q){ return q.text && q.options.filter(Boolean).length>=2; });
   if(!name){ toast('نام آزمون لازم است','err'); return; }
-  if(!questions.length){ toast('حداقل یک سوال لازم است','err'); return; }
-  for(const q of questions){
-    if(q.options.length<2){ toast('هر سوال حداقل ۲ گزینه','err'); return; }
-  }
+  if(!questions.length){ toast('حداقل یک سوال کامل لازم است','err'); return; }
+  // حفظ enabled از raw
+  questions.forEach(function(q){
+    q.options = q.options.filter(Boolean);
+  });
   try{
     await sbUpdate('exams','id=eq.'+editingExamId,{
       name, time_limit: time, type, enabled, questions
@@ -1157,8 +1263,9 @@ function shuffleArray(arr){
   return a;
 }
 function prepareShuffledQuestions(qs){
-  // هر سوال: گزینه‌ها شافل می‌شوند و correct به ایندکس جدید نگاشت می‌شود
-  const mapped = (qs||[]).map(function(q, origIdx){
+  // فقط سوالات فعال
+  const active = (qs||[]).filter(function(q){ return q && q.enabled !== false; });
+  const mapped = active.map(function(q, origIdx){
     const opts = (q.options||[]).map(function(text, oi){ return { text:text, orig:oi }; });
     const shuffled = shuffleArray(opts);
     const newCorrect = shuffled.findIndex(function(o){ return o.orig === q.correct; });
