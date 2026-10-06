@@ -243,6 +243,25 @@ body.dark .radio-opt input[type=text]{background:#12141c}
 .user-row .u-meta{color:var(--muted);font-size:12px}
 .user-row .btn{padding:5px 10px;font-size:12px}
 .ham-staff{right:max(14px,env(safe-area-inset-right));}
+
+.exam-card-removing{
+  animation: examRemove .45s ease forwards;
+  pointer-events:none
+}
+@keyframes examRemove{
+  0%{opacity:1;transform:translateX(0) scale(1);max-height:200px;margin-bottom:10px}
+  40%{opacity:.6;transform:translateX(30px) scale(.98)}
+  100%{opacity:0;transform:translateX(80px) scale(.9);max-height:0;margin:0;padding:0;border-width:0;overflow:hidden}
+}
+.delete-confirm-box{
+  background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;
+  max-width:340px;width:100%;text-align:center;box-shadow:var(--shadow);
+  animation: popIn .28s cubic-bezier(.2,.8,.2,1)
+}
+@keyframes popIn{
+  from{opacity:0;transform:scale(.92) translateY(12px)}
+  to{opacity:1;transform:scale(1) translateY(0)}
+}
 </style>
 </head>
 <body>
@@ -740,14 +759,14 @@ function showPage(id){
   closeMenu();
 }
 function updateMenuForPage(id){
-  const menu=document.getElementById('mainMenu');
+  const menu=document.getElementById("mainMenu");
   if(!menu) return;
-  if(id==='homePage'){
-    menu.innerHTML='<button type="button" onclick="closeMenu();showPage('adminLoginPage')">ورود ادمین</button>';
-  } else if(id==='userMainPage'||id==='managerPage'||id==='adminPage'){
-    menu.innerHTML='<button type="button" onclick="closeMenu();startChangePass()">تغییر رمز</button>';
+  if(id==="homePage"){
+    menu.innerHTML = "<button type=\"button\" onclick=\"closeMenu();showPage(\'adminLoginPage\')\">ورود ادمین</button>";
+  } else if(id==="userMainPage"||id==="managerPage"||id==="adminPage"){
+    menu.innerHTML = "<button type=\"button\" onclick=\"closeMenu();startChangePass()\">تغییر رمز</button>";
   } else {
-    menu.innerHTML='';
+    menu.innerHTML = "";
   }
 }
 function toggleNight(){
@@ -1231,7 +1250,7 @@ async function openManageExams(){
       const qs=Array.isArray(ex.questions)?ex.questions:(typeof ex.questions==='string'?JSON.parse(ex.questions):[]);
       const typeLabel=ex.type==='both'?'آزمایشی + آزمون':(ex.type==='practice'?'آزمایشی':'آزمون');
       const passP=ex.pass_percent!=null?ex.pass_percent:50;
-      return `<div class="card">
+      return `<div class="card" data-exam-id="${ex.id}">
         <div class="row-between">
           <h4>${escapeHtml(ex.name)}</h4>
           <label class="switch" title="فعال">
@@ -1284,9 +1303,28 @@ async function confirmRenameExam(){
   }catch(e){ toast('خطا','err'); }
 }
 async function deleteExam(id){
-  if(!confirm('حذف این آزمون؟')) return;
-  try{ await sbDelete('exams','id=eq.'+id); openManageExams(); }
-  catch(e){ toast('خطا','err'); }
+  const ok = await confirmModal('حذف آزمون','آیا مطمئن هستید که می‌خواهید این آزمون را حذف کنید؟ این عمل برگشت‌ناپذیر است.','حذف');
+  if(!ok) return;
+  // انیمیشن حذف روی کارت
+  const cards = document.querySelectorAll('#manageExamsList .card');
+  let target = null;
+  cards.forEach(function(c){
+    if(c.innerHTML.indexOf('deleteExam('+id+')')>=0 || c.innerHTML.indexOf('deleteExam('+id+',')>=0) target=c;
+    // match onclick in HTML
+    if(c.querySelector && c.querySelector('[onclick*="deleteExam('+id+')"]')) target=c;
+  });
+  // بهتر: پیدا کردن با data-id
+  const byData = document.querySelector('#manageExamsList .card[data-exam-id="'+id+'"]');
+  if(byData) target = byData;
+  if(target){
+    target.classList.add('exam-card-removing');
+    await new Promise(function(r){ setTimeout(r, 420); });
+  }
+  try{
+    await sbDelete('exams','id=eq.'+id);
+    toast('آزمون حذف شد','ok');
+    openManageExams();
+  }catch(e){ toast('خطا','err'); openManageExams(); }
 }
 async function createNewExam(){
   try{
