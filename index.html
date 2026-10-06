@@ -13,8 +13,34 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{
   font-family:Tahoma,system-ui,sans-serif;background:var(--bg);color:var(--text);
-  min-height:100vh;min-height:100dvh;
+  min-height:100vh;min-height:100dvh;transition:background .25s,color .25s;
 }
+body.dark{
+  --bg:#0f1117;--card:#1a1d27;--border:#2a2e3a;--text:#e8eaef;--muted:#8b90a0;
+  --primary:#7c6cf0;--primary2:#a29bfe;--ok:#34d399;--err:#f87171;--warn:#fbbf24;
+  --shadow:0 4px 20px rgba(0,0,0,.35);
+}
+body.dark .input-group input,body.dark .input-group textarea,body.dark select{background:#12141c}
+body.dark .opt{background:#12141c}
+body.dark .q-edit{background:#12141c}
+body.dark .hamburger{background:#1a1d27}
+body.dark .hamburger span{background:#ccc}
+body.dark .btn-secondary{background:#1a1d27}
+.night-btn{
+  position:fixed;top:max(14px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));
+  width:42px;height:42px;border:1px solid var(--border);background:var(--card);border-radius:10px;
+  z-index:200;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow)
+}
+.opt.correct,.opt.wrong{color:var(--text)!important}
+.opt.correct span,.opt.wrong span{color:inherit}
+.q-card .q-text{color:var(--text)!important}
+.opt.correct{color:#065f46!important}
+body.dark .opt.correct{color:#a7f3d0!important}
+.opt.wrong{color:#7f1d1d!important}
+body.dark .opt.wrong{color:#fecaca!important}
+.q-text{color:var(--text)!important}
+
 .page{display:none;min-height:100vh;min-height:100dvh;padding:20px;padding-top:max(20px,env(safe-area-inset-top));padding-bottom:max(20px,env(safe-area-inset-bottom))}
 .page.active{display:flex;flex-direction:column;align-items:center;justify-content:center}
 .page.top{justify-content:flex-start;align-items:stretch}
@@ -56,15 +82,19 @@ body{
 .menu-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:198}
 .menu-overlay.show{display:block}
 .admin-menu{
-  display:none;position:fixed;top:max(60px,calc(env(safe-area-inset-top)+48px));right:max(14px,env(safe-area-inset-right));
-  background:var(--card);border:1px solid var(--border);border-radius:12px;z-index:199;min-width:180px;overflow:hidden
+  display:none;position:fixed;top:max(62px,calc(env(safe-area-inset-top)+50px));right:max(14px,env(safe-area-inset-right));
+  background:var(--card);border:1px solid var(--border);border-radius:12px;z-index:201;min-width:160px;
+  overflow:hidden;box-shadow:var(--shadow);padding:4px 0
 }
 .admin-menu.show{display:block}
 .admin-menu button{
-  display:block;width:100%;text-align:right;padding:12px 16px;border:none;background:transparent;
-  color:var(--text);font-size:13px;cursor:pointer
+  display:block;width:100%;text-align:right;padding:12px 18px;border:none;background:transparent;
+  color:var(--text);font-size:14px;cursor:pointer;line-height:1.4
 }
-.admin-menu button:active{background:rgba(108,92,231,.15)}
+.admin-menu button:hover,.admin-menu button:active{background:rgba(91,76,219,.1)}
+.hamburger.hidden{display:none!important}
+.night-btn.hidden{display:none!important}
+
 .grid-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:420px}
 .grid-btns .btn{width:100%}
 .list{display:flex;flex-direction:column;gap:10px;width:100%}
@@ -131,11 +161,19 @@ body{
 .chip.off{background:rgba(255,255,255,.06);color:var(--muted)}
 .chip.both{background:rgba(0,184,148,.15);color:#55efc4}
 .topbar-mini{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;max-width:560px;width:100%;margin-left:auto;margin-right:auto}
+
+.review-unanswered{border:1px dashed var(--warn)!important;background:rgba(217,119,6,.06)}
+.correct-tick{display:inline-block;margin-right:6px}
+.radio-opt{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.radio-opt input{width:18px;height:18px;accent-color:var(--primary);flex-shrink:0}
+.radio-opt input[type=text]{flex:1;width:auto;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:#f8fafc;color:var(--text)}
+body.dark .radio-opt input[type=text]{background:#12141c}
 </style>
 </head>
 <body>
 
-<button class="hamburger" id="mainHam" onclick="toggleMenu()"><span></span><span></span><span></span></button>
+<button type="button" class="night-btn" id="nightBtn" onclick="toggleNight()" title="حالت شب/روز">🌙</button>
+<button class="hamburger" id="mainHam" onclick="toggleMenu()" aria-label="منو"><span></span><span></span><span></span></button>
 <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 <div class="admin-menu" id="mainMenu">
   <button onclick="closeMenu();showPage('adminLoginPage')">ورود ادمین</button>
@@ -145,7 +183,7 @@ body{
 <div class="page active" id="homePage">
   <div class="home-buttons" style="margin-top:40px">
     <button class="btn btn-primary" onclick="showPage('loginPage')">ورود</button>
-    <button class="btn btn-secondary" onclick="showPage('registerPage')">ثبت نام</button>
+    <button class="btn btn-secondary" onclick="openRegister()">ثبت نام</button>
   </div>
 </div>
 
@@ -153,19 +191,32 @@ body{
 <div class="page" id="registerPage">
   <div class="form-box">
     <h2>ثبت نام</h2>
-    <div class="input-group">
-      <label>نام کاربری (انگلیسی)</label>
-      <input type="text" id="regUser" autocomplete="username" dir="ltr">
-      <div class="hint">فقط حروف انگلیسی، عدد و _ — یکتا</div>
+    <div id="regStep1">
+      <div class="input-group">
+        <label>نام کاربری (انگلیسی)</label>
+        <input type="text" id="regUser" autocomplete="username" dir="ltr">
+        <div class="hint">فقط حروف انگلیسی، عدد و _ — یکتا · حداقل ۳ حرف</div>
+      </div>
+      <div class="error-msg" id="regErr1"></div>
+      <div class="form-buttons">
+        <button class="btn btn-secondary" onclick="showPage('homePage')">برگشت</button>
+        <button class="btn btn-primary" onclick="regGoStep2()">ادامه</button>
+      </div>
     </div>
-    <div class="input-group">
-      <label>رمز عبور (انگلیسی، حداقل ۴ حرف)</label>
-      <input type="password" id="regPass" autocomplete="new-password" dir="ltr">
-    </div>
-    <div class="error-msg" id="regErr"></div>
-    <div class="form-buttons">
-      <button class="btn btn-secondary" onclick="showPage('homePage')">برگشت</button>
-      <button class="btn btn-primary" onclick="doRegister()">ثبت نام</button>
+    <div id="regStep2" style="display:none">
+      <div class="input-group">
+        <label>رمز عبور (انگلیسی، حداقل ۴ حرف)</label>
+        <input type="password" id="regPass" autocomplete="new-password" dir="ltr">
+      </div>
+      <div class="input-group">
+        <label>تکرار رمز عبور</label>
+        <input type="password" id="regPass2" autocomplete="new-password" dir="ltr">
+      </div>
+      <div class="error-msg" id="regErr2"></div>
+      <div class="form-buttons">
+        <button class="btn btn-secondary" onclick="regBackStep1()">قبلی</button>
+        <button class="btn btn-primary" onclick="doRegister()">ثبت نام</button>
+      </div>
     </div>
   </div>
 </div>
@@ -187,7 +238,7 @@ body{
 <!-- ADMIN LOGIN -->
 <div class="page" id="adminLoginPage">
   <div class="form-box">
-    <h2>ورود ادمین / مدیر</h2>
+    <h2>ورود ادمین</h2>
     <div class="input-group"><label>رمز</label><input type="password" id="adminPass" dir="ltr"></div>
     <div class="error-msg" id="adminErr"></div>
     <div class="form-buttons">
@@ -236,12 +287,25 @@ body{
   </div>
 </div>
 
+<!-- REVIEW -->
+<div class="page top" id="reviewPage">
+  <div class="topbar-mini">
+    <h2 style="color:var(--primary2);font-size:17px;margin:0">مرور پاسخ‌ها</h2>
+    <button class="btn btn-secondary btn-sm" onclick="showPage('resultPage')">نتیجه</button>
+  </div>
+  <div id="reviewBody" style="max-width:560px;margin:0 auto;width:100%;padding-bottom:40px"></div>
+  <div style="max-width:560px;margin:12px auto;width:100%">
+    <button class="btn btn-primary" onclick="showPage('resultPage')">مشاهده خلاصه نتیجه</button>
+  </div>
+</div>
+
 <!-- RESULT -->
 <div class="page top" id="resultPage">
   <div class="panel result-box">
     <h2>نتیجه آزمون</h2>
     <div id="resultContent"></div>
-    <button class="btn btn-primary" style="margin-top:16px" onclick="showPage('userMainPage')">بازگشت به صفحه اصلی</button>
+    <button class="btn btn-secondary" style="margin-top:12px" onclick="showPage('reviewPage')">مرور پاسخ‌ها</button>
+    <button class="btn btn-primary" style="margin-top:10px" onclick="showPage('userMainPage')">بازگشت به صفحه اصلی</button>
   </div>
 </div>
 
@@ -537,6 +601,26 @@ function showPage(id){
   if(ham) ham.classList.toggle('hidden', id!=='homePage');
   closeMenu();
 }
+function toggleNight(){
+  document.body.classList.toggle('dark');
+  const on = document.body.classList.contains('dark');
+  try{ localStorage.setItem('exam_dark', on ? '1' : '0'); }catch(e){}
+  const btn=document.getElementById('nightBtn');
+  if(btn) btn.textContent = on ? '☀️' : '🌙';
+}
+function initTheme(){
+  let dark = false;
+  try{
+    const saved = localStorage.getItem('exam_dark');
+    if(saved === '1') dark = true;
+    else if(saved === '0') dark = false;
+    else if(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) dark = true;
+  }catch(e){}
+  document.body.classList.toggle('dark', dark);
+  const btn=document.getElementById('nightBtn');
+  if(btn) btn.textContent = dark ? '☀️' : '🌙';
+}
+
 function toggleMenu(){
   document.getElementById('mainMenu').classList.toggle('show');
   document.getElementById('menuOverlay').classList.toggle('show');
@@ -555,11 +639,12 @@ function backToStaff(){
   if(isManager) showPage('managerPage');
   else showPage('adminPage');
 }
-function confirmModal(title, desc){
+function confirmModal(title, desc, okText){
   return new Promise(resolve=>{
     confirmResolver=resolve;
     document.getElementById('confirmTitle').textContent=title;
     document.getElementById('confirmDesc').textContent=desc;
+    document.getElementById('confirmOk').textContent = okText || 'تأیید';
     document.getElementById('confirmModal').classList.add('show');
   });
 }
@@ -580,13 +665,36 @@ function escapeHtml(s){
 function isEnglishUser(u){ return /^[a-zA-Z0-9_]{3,24}$/.test(u); }
 function isEnglishPass(p){ return /^[\x20-\x7E]{4,64}$/.test(p); }
 
+function openRegister(){
+  document.getElementById('regStep1').style.display='';
+  document.getElementById('regStep2').style.display='none';
+  const e1=document.getElementById('regErr1'); if(e1) e1.style.display='none';
+  const e2=document.getElementById('regErr2'); if(e2) e2.style.display='none';
+  showPage('registerPage');
+}
+function regGoStep2(){
+  const u=document.getElementById('regUser').value.trim();
+  const err=document.getElementById('regErr1');
+  err.style.display='block';
+  if(!isEnglishUser(u)){ err.textContent='نام کاربری باید انگلیسی (۳–۲۴ حرف، عدد یا _) باشد'; return; }
+  err.style.display='none';
+  document.getElementById('regStep1').style.display='none';
+  document.getElementById('regStep2').style.display='';
+  document.getElementById('regPass').focus();
+}
+function regBackStep1(){
+  document.getElementById('regStep2').style.display='none';
+  document.getElementById('regStep1').style.display='';
+}
 async function doRegister(){
   const u=document.getElementById('regUser').value.trim();
   const p=document.getElementById('regPass').value;
-  const err=document.getElementById('regErr');
+  const p2=document.getElementById('regPass2').value;
+  const err=document.getElementById('regErr2');
   err.style.display='block';
-  if(!isEnglishUser(u)){ err.textContent='نام کاربری باید انگلیسی (۳–۲۴ حرف، عدد یا _) باشد'; return; }
+  if(!isEnglishUser(u)){ err.textContent='نام کاربری نامعتبر است — به مرحله قبل برگردید'; return; }
   if(!isEnglishPass(p)){ err.textContent='رمز باید انگلیسی و حداقل ۴ کاراکتر باشد'; return; }
+  if(p !== p2){ err.textContent='رمز و تکرار آن یکسان نیست'; return; }
   try{
     const exists=await sbGet('exam_users','select=username&username=eq.'+encodeURIComponent(u.toLowerCase()));
     if(exists && exists.length){ err.textContent='این نام کاربری قبلاً ثبت شده'; return; }
@@ -597,6 +705,10 @@ async function doRegister(){
       last_login: null
     }, 'username');
     toast('ثبت نام موفق','ok');
+    document.getElementById('regStep2').style.display='none';
+    document.getElementById('regStep1').style.display='';
+    document.getElementById('regPass').value='';
+    document.getElementById('regPass2').value='';
     showPage('loginPage');
     document.getElementById('loginUser').value=u.toLowerCase();
   }catch(e){
@@ -657,7 +769,8 @@ async function doAdminLogin(){
 function logout(){
   currentUser=null; isManager=false; currentAdmin=null;
   stopExamTimer();
-  showPage('homePage');
+  initTheme();
+showPage('homePage');
 }
 
 function renderAdminPanel(){
@@ -685,9 +798,39 @@ async function openUsers(){
         <h4 dir="ltr">${escapeHtml(u.username)}</h4>
         <div class="meta">رمز: <span dir="ltr">${escapeHtml(u.password)}</span></div>
         <div class="meta">آخرین ورود: ${fmtTime(u.last_login)}</div>
+        <div class="card-actions">
+          <button class="btn btn-secondary btn-sm" onclick="openUserQuickStats('${escapeHtml(u.username)}')">آمار</button>
+          ${isManager?`<button class="btn btn-danger btn-sm" onclick="deleteUser('${escapeHtml(u.username)}')">حذف</button>`:''}
+        </div>
+        <div id="ustats_${escapeHtml(u.username)}" class="meta" style="display:none;margin-top:8px"></div>
       </div>
     `).join('');
   }catch(e){ list.innerHTML='<div class="empty">خطا</div>'; }
+}
+async function openUserQuickStats(username){
+  const box=document.getElementById('ustats_'+username);
+  if(!box) return;
+  if(box.style.display==='block' && box.dataset.loaded==='1'){ box.style.display='none'; return; }
+  box.style.display='block';
+  box.innerHTML='در حال بارگذاری آمار...';
+  try{
+    const rows=await sbGet('exam_results','select=*&username=eq.'+encodeURIComponent(username));
+    const n=(rows||[]).length;
+    let c=0,w=0,u=0;
+    (rows||[]).forEach(r=>{ c+=r.correct|0; w+=r.wrong|0; u+=r.unanswered|0; });
+    box.dataset.loaded='1';
+    box.innerHTML=`تعداد آزمون: <b>${n}</b> · درست: <b style="color:var(--ok)">${c}</b> · غلط: <b style="color:var(--err)">${w}</b> · بی‌پاسخ: <b>${u}</b>`;
+  }catch(e){ box.innerHTML='خطا در دریافت آمار'; }
+}
+async function deleteUser(username){
+  if(!isManager) return;
+  if(!confirm('کاربر «'+username+'» حذف شود؟')) return;
+  try{
+    await sbDelete('exam_users','username=eq.'+encodeURIComponent(username));
+    try{ await sbDelete('exam_results','username=eq.'+encodeURIComponent(username)); }catch(e){}
+    toast('حذف شد','ok');
+    openUsers();
+  }catch(e){ toast('خطا در حذف','err'); }
 }
 
 /* ===== Admins ===== */
@@ -884,9 +1027,9 @@ function renderQuestionEditors(qs){
     const opts=q.options||['','',''];
     while(opts.length<3) opts.push('');
     const optInputs=opts.map((o,j)=>`
-      <div class="input-group">
-        <label>گزینه ${j+1} ${q.correct===j?'(صحیح)':''}</label>
-        <input type="text" data-q="${i}" data-opt="${j}" value="${escapeHtml(o)}" dir="auto">
+      <div class="radio-opt">
+        <input type="radio" name="correct_${i}" data-qcorrect-radio="${i}" value="${j}" ${q.correct===j?'checked':''} title="پاسخ صحیح">
+        <input type="text" data-q="${i}" data-opt="${j}" value="${escapeHtml(o)}" dir="auto" placeholder="گزینه ${j+1}">
       </div>
     `).join('');
     return `<div class="q-edit" data-qi="${i}">
@@ -894,10 +1037,8 @@ function renderQuestionEditors(qs){
       <div class="input-group"><label>متن سوال ${i+1}</label>
         <textarea data-qtext="${i}" dir="auto">${escapeHtml(q.text||'')}</textarea>
       </div>
+      <div class="hint" style="margin-bottom:8px">تیک کنار گزینه = پاسخ صحیح (فقط یکی)</div>
       ${optInputs}
-      <div class="input-group"><label>شماره گزینه صحیح (۱ تا ${opts.length})</label>
-        <input type="number" min="1" max="${opts.length}" data-qcorrect="${i}" value="${(q.correct|0)+1}">
-      </div>
       <button type="button" class="btn btn-secondary btn-sm" onclick="addOptionToQuestion(${i})">＋ گزینه</button>
     </div>`;
   }).join('');
@@ -907,12 +1048,21 @@ function collectQuestionsFromEditors(){
   const box=document.getElementById('editQuestions');
   return [...box.querySelectorAll('.q-edit')].map(block=>{
     const text=(block.querySelector('textarea[data-qtext]')||{}).value||'';
-    const options=[...block.querySelectorAll('input[data-opt]')].map(i=>i.value.trim());
-    let correct=parseInt((block.querySelector('input[data-qcorrect]')||{}).value||'1',10)-1;
-    if(correct<0) correct=0;
-    if(correct>=options.length) correct=options.length-1;
-    return { text: text.trim(), options: options.filter(o=>o.length), correct };
-  }).filter(q=>q.text && q.options.length>=2);
+    const optInputs=[...block.querySelectorAll('input[data-opt]')];
+    const options=optInputs.map(i=>i.value.trim());
+    const radio=block.querySelector('input[data-qcorrect-radio]:checked');
+    let correct=radio ? parseInt(radio.value,10) : 0;
+    // فیلتر گزینه‌های خالی و تنظیم correct
+    const kept=[];
+    let newCorrect=0;
+    options.forEach(function(o,idx){
+      if(!o) return;
+      if(idx===correct) newCorrect=kept.length;
+      kept.push(o);
+    });
+    if(!kept.length) return null;
+    return { text: text.trim(), options: kept, correct: newCorrect };
+  }).filter(q=>q && q.text && q.options.length>=2);
 }
 
 function addQuestionEditor(){
@@ -991,14 +1141,39 @@ async function startExamFlow(id, mode){
     }
     const ok=await confirmModal(
       'شروع آزمون؟',
-      `نام: ${ex.name}\nتعداد سوالات: ${qs.length}\nزمان: ${ex.time_limit||0} دقیقه\n\nآیا مطمئن هستید؟`
+      `نام: ${ex.name}\nتعداد سوالات: ${qs.length}\nزمان: ${ex.time_limit||0} دقیقه\n\nآیا مطمئن هستید؟`,
+      'شروع'
     );
     if(ok) beginExam(ex, qs, 'exam');
   }catch(e){ toast('خطا','err'); }
 }
 
+function shuffleArray(arr){
+  const a=arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    const t=a[i]; a[i]=a[j]; a[j]=t;
+  }
+  return a;
+}
+function prepareShuffledQuestions(qs){
+  // هر سوال: گزینه‌ها شافل می‌شوند و correct به ایندکس جدید نگاشت می‌شود
+  const mapped = (qs||[]).map(function(q, origIdx){
+    const opts = (q.options||[]).map(function(text, oi){ return { text:text, orig:oi }; });
+    const shuffled = shuffleArray(opts);
+    const newCorrect = shuffled.findIndex(function(o){ return o.orig === q.correct; });
+    return {
+      text: q.text,
+      options: shuffled.map(function(o){ return o.text; }),
+      correct: newCorrect >= 0 ? newCorrect : 0,
+      origIndex: origIdx
+    };
+  });
+  return shuffleArray(mapped);
+}
 function beginExam(ex, qs, mode){
-  activeExam={ exam:ex, questions:qs, mode:mode, startedAt: Date.now() };
+  const prepared = prepareShuffledQuestions(qs);
+  activeExam={ exam:ex, questions:prepared, mode:mode, startedAt: Date.now() };
   answers={};
   stopExamTimer();
   document.getElementById('takeExamName').textContent=ex.name;
@@ -1085,15 +1260,15 @@ function leaveExam(){
 async function finishExam(auto){
   if(!activeExam||activeExam.mode!=='exam') return;
   if(!auto){
-    const ok=await confirmModal('پایان آزمون','آیا از پایان آزمون مطمئن هستید؟');
+    const ok=await confirmModal('پایان آزمون','آیا مطمئن هستید که می‌خواهید آزمون را تمام کنید؟','پایان آزمون');
     if(!ok) return;
   }
   stopExamTimer();
   const qs=activeExam.questions;
   let correct=0, wrong=0, unanswered=0;
-  const correctIds=[], wrongIds=[];
+  const correctIds=[], wrongIds=[], unansweredIds=[];
   qs.forEach((q,i)=>{
-    if(answers[i]===undefined){ unanswered++; return; }
+    if(answers[i]===undefined){ unanswered++; unansweredIds.push(i+1); return; }
     if(answers[i]===q.correct){ correct++; correctIds.push(i+1); }
     else { wrong++; wrongIds.push(i+1); }
   });
@@ -1105,19 +1280,51 @@ async function finishExam(auto){
     started_at: new Date(activeExam.startedAt).toISOString(),
     finished_at: new Date(finishedAt).toISOString(),
     correct, wrong, unanswered,
-    details: { correctIds, wrongIds, answers }
+    details: { correctIds, wrongIds, unansweredIds, answers }
   };
   try{ await sbInsert('exam_results', payload); }catch(e){ console.error(e); }
+
+  // صفحه مرور پاسخ‌ها
+  renderReviewPage(qs, answers);
 
   document.getElementById('resultContent').innerHTML=`
     <div class="big">${correct} / ${qs.length}</div>
     <p>درست: <b style="color:var(--ok)">${correct}</b> — سوالات: ${correctIds.join(', ')||'—'}</p>
     <p>غلط: <b style="color:var(--err)">${wrong}</b> — سوالات: ${wrongIds.join(', ')||'—'}</p>
-    <p>بدون پاسخ: <b>${unanswered}</b></p>
+    <p>بدون پاسخ: <b>${unanswered}</b> — سوالات: ${unansweredIds.join(', ')||'—'}</p>
     <p style="margin-top:10px;font-size:12px;color:var(--muted)">زمان پایان: ${fmtTime(finishedAt)}</p>
+    <button class="btn btn-secondary" style="margin-top:12px" onclick="showPage('reviewPage')">مشاهده سوالات و جواب‌ها</button>
   `;
   activeExam=null;
-  showPage('resultPage');
+  showPage('reviewPage');
+}
+function renderReviewPage(qs, ans){
+  const body=document.getElementById('reviewBody');
+  if(!body) return;
+  body.innerHTML=(qs||[]).map(function(q,qi){
+    const userAns = ans[qi];
+    const unanswered = userAns===undefined;
+    const opts=(q.options||[]).map(function(o,oi){
+      let cls='opt';
+      if(oi===q.correct) cls+=' correct';
+      else if(!unanswered && oi===userAns) cls+=' wrong';
+      let tag='';
+      if(oi===q.correct) tag=' ✓ پاسخ صحیح';
+      else if(!unanswered && oi===userAns) tag=' ✗ پاسخ شما';
+      return `<div class="${cls}" style="cursor:default">${escapeHtml(o)}${tag?'<span style="font-size:12px;opacity:.85"> '+tag+'</span>':''}</div>`;
+    }).join('');
+    const status = unanswered
+      ? '<div class="meta" style="color:var(--warn);margin-bottom:8px">پاسخ داده نشده</div>'
+      : (userAns===q.correct
+          ? '<div class="meta" style="color:var(--ok);margin-bottom:8px">پاسخ درست</div>'
+          : '<div class="meta" style="color:var(--err);margin-bottom:8px">پاسخ نادرست</div>');
+    return `<div class="q-card ${unanswered?'review-unanswered':''}">
+      <div class="q-num">سوال ${qi+1}</div>
+      <div class="q-text" dir="auto">${escapeHtml(q.text)}</div>
+      ${status}
+      ${opts}
+    </div>`;
+  }).join('');
 }
 
 /* ===== Stats ===== */
@@ -1158,6 +1365,7 @@ async function openUserStats(username){
 }
 
 /* boot */
+initTheme();
 showPage('homePage');
 </script>
 </body>
