@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>آزمون</title>
+<style>
+:root{
+  --bg:#f4f6fb;--card:#ffffff;--border:#e2e6ef;--text:#1a1d26;--muted:#6b7280;
+  --primary:#5b4cdb;--primary2:#6c5ce7;--ok:#059669;--err:#dc2626;--warn:#d97706;
+  --shadow:0 4px 20px rgba(15,23,42,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:Tahoma,system-ui,sans-serif;background:var(--bg);color:var(--text);
+  min-height:100vh;min-height:100dvh;
+}
+.page{display:none;min-height:100vh;min-height:100dvh;padding:20px;padding-top:max(20px,env(safe-area-inset-top));padding-bottom:max(20px,env(safe-area-inset-bottom))}
+.page.active{display:flex;flex-direction:column;align-items:center;justify-content:center}
+.page.top{justify-content:flex-start;align-items:stretch}
+.logo{font-size:36px;font-weight:800;color:var(--primary2);margin-bottom:6px}
+.subtitle{color:var(--muted);font-size:13px;margin-bottom:28px}
+.home-buttons{display:flex;flex-direction:column;gap:12px;width:100%;max-width:300px}
+.btn{padding:13px 22px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;width:100%}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-secondary{background:#fff;color:var(--primary2);border:1px solid var(--border)}
+.btn-danger{background:rgba(225,112,85,.2);color:#ff7675;border:1px solid rgba(225,112,85,.35)}
+.btn-ok{background:rgba(0,184,148,.2);color:#55efc4;border:1px solid rgba(0,184,148,.35)}
+.btn-sm{padding:8px 14px;font-size:13px;width:auto}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.form-box,.panel{
+  width:100%;max-width:420px;background:var(--card);border:1px solid var(--border);
+  border-radius:16px;padding:22px;margin:0 auto;box-shadow:var(--shadow)
+}
+.panel{max-width:560px}
+.form-box h2,.panel h2{color:var(--primary2);font-size:18px;margin-bottom:16px;text-align:center}
+.input-group{margin-bottom:14px}
+.input-group label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+.input-group input,.input-group textarea,select{
+  width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--border);
+  background:#f8fafc;color:var(--text);font-size:14px;outline:none
+}
+.input-group input:focus,.input-group textarea:focus,select:focus{border-color:var(--primary);background:#fff}
+.input-group textarea{min-height:70px;resize:vertical}
+.form-buttons{display:flex;gap:10px;margin-top:8px}
+.form-buttons .btn{flex:1}
+.error-msg{display:none;color:#ff7675;font-size:12px;margin-top:6px}
+.hint{font-size:11px;color:var(--muted);margin-top:4px}
+.hamburger{
+  position:fixed;top:max(14px,env(safe-area-inset-top));right:max(14px,env(safe-area-inset-right));
+  width:42px;height:42px;border:1px solid var(--border);background:#fff;border-radius:10px;
+  z-index:200;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;box-shadow:var(--shadow)
+}
+.hamburger span{display:block;width:18px;height:2px;background:#444;border-radius:1px}
+.hamburger.hidden{display:none!important}
+.menu-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:198}
+.menu-overlay.show{display:block}
+.admin-menu{
+  display:none;position:fixed;top:max(60px,calc(env(safe-area-inset-top)+48px));right:max(14px,env(safe-area-inset-right));
+  background:var(--card);border:1px solid var(--border);border-radius:12px;z-index:199;min-width:180px;overflow:hidden
+}
+.admin-menu.show{display:block}
+.admin-menu button{
+  display:block;width:100%;text-align:right;padding:12px 16px;border:none;background:transparent;
+  color:var(--text);font-size:13px;cursor:pointer
+}
+.admin-menu button:active{background:rgba(108,92,231,.15)}
+.grid-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:420px}
+.grid-btns .btn{width:100%}
+.list{display:flex;flex-direction:column;gap:10px;width:100%}
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow)
+}
+.card h4{font-size:15px;margin-bottom:4px}
+.card .meta{font-size:12px;color:var(--muted)}
+.card-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.row-between{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.switch{position:relative;width:46px;height:26px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.slider{
+  position:absolute;inset:0;background:#cbd5e1;border-radius:26px;cursor:pointer;transition:.2s
+}
+.slider:before{
+  content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s
+}
+.switch input:checked+.slider{background:var(--primary)}
+.switch input:checked+.slider:before{transform:translateX(20px)}
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;
+  padding:10px 18px;border-radius:20px;font-size:13px;z-index:999;opacity:0;pointer-events:none;transition:.25s;box-shadow:var(--shadow)
+}
+.toast.show{opacity:1}
+.toast.ok{background:#059669}
+.toast.err{background:#dc2626}
+.exam-header{
+  position:sticky;top:0;background:rgba(244,246,251,.95);backdrop-filter:blur(8px);padding:12px 0;z-index:10;border-bottom:1px solid var(--border);margin-bottom:14px
+}
+.exam-stats{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;font-size:13px}
+.exam-stats span{padding:4px 10px;border-radius:8px;background:var(--card)}
+.exam-stats .ok{color:var(--ok)}
+.exam-stats .err{color:var(--err)}
+.exam-stats .time{color:var(--warn);font-weight:700}
+.q-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.q-card .q-num{font-size:12px;color:var(--muted);margin-bottom:8px}
+.q-card .q-text{font-size:15px;line-height:1.6;margin-bottom:12px}
+.opt{
+  display:block;width:100%;text-align:right;padding:12px 14px;margin-bottom:8px;border-radius:10px;
+  border:1px solid var(--border);background:#fff;color:var(--text);cursor:pointer;font-size:14px
+}
+.opt:hover{border-color:var(--primary)}
+.opt.selected{border-color:var(--primary2);background:rgba(108,92,231,.12)}
+.opt.correct{border-color:var(--ok)!important;background:rgba(0,184,148,.18)!important;color:#55efc4}
+.opt.wrong{border-color:var(--err)!important;background:rgba(225,112,85,.18)!important;color:#ff7675}
+.opt:disabled{cursor:default}
+.result-box{text-align:center;padding:20px}
+.result-box .big{font-size:28px;font-weight:800;margin:10px 0}
+.modal-bg{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;align-items:center;justify-content:center;padding:20px
+}
+.modal-bg.show{display:flex}
+.modal{
+  background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;max-width:360px;width:100%;text-align:center
+}
+.modal h3{margin-bottom:10px;color:var(--primary2)}
+.modal p{font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5}
+.q-edit{border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px;background:#f8fafc}
+.q-edit .rm{float:left}
+.loading{text-align:center;color:var(--muted);padding:30px}
+.empty{text-align:center;color:var(--muted);padding:24px;font-size:13px}
+.chip{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;background:rgba(108,92,231,.2);color:var(--primary2)}
+.chip.off{background:rgba(255,255,255,.06);color:var(--muted)}
+.chip.both{background:rgba(0,184,148,.15);color:#55efc4}
+.topbar-mini{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;max-width:560px;width:100%;margin-left:auto;margin-right:auto}
+</style>
+</head>
+<body>
+
+<button class="hamburger" id="mainHam" onclick="toggleMenu()"><span></span><span></span><span></span></button>
+<div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+<div class="admin-menu" id="mainMenu">
+  <button onclick="closeMenu();showPage('adminLoginPage')">ورود ادمین</button>
+</div>
+
+<!-- HOME -->
+<div class="page active" id="homePage">
+  <div class="home-buttons" style="margin-top:40px">
+    <button class="btn btn-primary" onclick="showPage('loginPage')">ورود</button>
+    <button class="btn btn-secondary" onclick="showPage('registerPage')">ثبت نام</button>
+  </div>
+</div>
+
+<!-- REGISTER -->
+<div class="page" id="registerPage">
+  <div class="form-box">
+    <h2>ثبت نام</h2>
+    <div class="input-group">
+      <label>نام کاربری (انگلیسی)</label>
+      <input type="text" id="regUser" autocomplete="username" dir="ltr">
+      <div class="hint">فقط حروف انگلیسی، عدد و _ — یکتا</div>
+    </div>
+    <div class="input-group">
+      <label>رمز عبور (انگلیسی، حداقل ۴ حرف)</label>
+      <input type="password" id="regPass" autocomplete="new-password" dir="ltr">
+    </div>
+    <div class="error-msg" id="regErr"></div>
+    <div class="form-buttons">
+      <button class="btn btn-secondary" onclick="showPage('homePage')">برگشت</button>
+      <button class="btn btn-primary" onclick="doRegister()">ثبت نام</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div class="page" id="loginPage">
+  <div class="form-box">
+    <h2>ورود</h2>
+    <div class="input-group"><label>نام کاربری</label><input type="text" id="loginUser" dir="ltr"></div>
+    <div class="input-group"><label>رمز عبور</label><input type="password" id="loginPass" dir="ltr"></div>
+    <div class="error-msg" id="loginErr"></div>
+    <div class="form-buttons">
+      <button class="btn btn-secondary" onclick="showPage('homePage')">برگشت</button>
+      <button class="btn btn-primary" onclick="doLogin()">ورود</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN LOGIN -->
+<div class="page" id="adminLoginPage">
+  <div class="form-box">
+    <h2>ورود ادمین / مدیر</h2>
+    <div class="input-group"><label>رمز</label><input type="password" id="adminPass" dir="ltr"></div>
+    <div class="error-msg" id="adminErr"></div>
+    <div class="form-buttons">
+      <button class="btn btn-secondary" onclick="showPage('homePage')">برگشت</button>
+      <button class="btn btn-primary" onclick="doAdminLogin()">ورود</button>
+    </div>
+  </div>
+</div>
+
+<!-- USER MAIN -->
+<div class="page top" id="userMainPage">
+  <div class="topbar-mini">
+    <div>
+      <div style="font-size:13px;color:var(--muted)">خوش آمدید</div>
+      <div id="userWelcome" style="font-weight:700">—</div>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="logout()">خروج</button>
+  </div>
+  <div class="grid-btns" style="margin:0 auto">
+    <button class="btn btn-primary" onclick="openExamList('practice')">آزمون آزمایشی</button>
+    <button class="btn btn-secondary" onclick="openExamList('exam')">آزمون</button>
+  </div>
+</div>
+
+<!-- EXAM LIST -->
+<div class="page top" id="examListPage">
+  <div class="topbar-mini">
+    <h2 id="examListTitle" style="color:var(--primary2);font-size:17px;margin:0">آزمون‌ها</h2>
+    <button class="btn btn-secondary btn-sm" onclick="showPage('userMainPage')">برگشت</button>
+  </div>
+  <div class="list" id="examList" style="max-width:560px;margin:0 auto"></div>
+</div>
+
+<!-- PRACTICE / EXAM TAKING -->
+<div class="page top" id="takeExamPage">
+  <div class="exam-header">
+    <div class="row-between" style="max-width:560px;margin:0 auto 8px">
+      <strong id="takeExamName">—</strong>
+      <button class="btn btn-secondary btn-sm" id="takeExamBackBtn" onclick="leaveExam()">خروج</button>
+    </div>
+    <div class="exam-stats" id="takeExamStats"></div>
+  </div>
+  <div id="takeExamBody" style="max-width:560px;margin:0 auto;width:100%;padding-bottom:80px"></div>
+  <div style="position:fixed;bottom:0;left:0;right:0;padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);display:none" id="finishBar">
+    <button class="btn btn-primary" style="max-width:560px;margin:0 auto;display:block" onclick="finishExam()">پایان آزمون</button>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div class="page top" id="resultPage">
+  <div class="panel result-box">
+    <h2>نتیجه آزمون</h2>
+    <div id="resultContent"></div>
+    <button class="btn btn-primary" style="margin-top:16px" onclick="showPage('userMainPage')">بازگشت به صفحه اصلی</button>
+  </div>
+</div>
+
+<!-- MANAGER PANEL -->
+<div class="page top" id="managerPage">
+  <div class="topbar-mini">
+    <h2 style="color:var(--primary2);font-size:17px;margin:0">پنل مدیر</h2>
+    <button class="btn btn-secondary btn-sm" onclick="logout()">خروج</button>
+  </div>
+  <div class="grid-btns" style="margin:0 auto;max-width:420px">
+    <button class="btn btn-primary" onclick="openUsers()">کاربران</button>
+    <button class="btn btn-secondary" onclick="openAddAdmin()">افزودن ادمین</button>
+    <button class="btn btn-secondary" onclick="openManageAdmins()">مدیریت ادمین</button>
+    <button class="btn btn-secondary" onclick="openManageExams()">مدیریت آزمون</button>
+    <button class="btn btn-primary" onclick="openStats()" style="grid-column:1/-1">آمار</button>
+  </div>
+</div>
+
+<!-- ADMIN PANEL (limited) -->
+<div class="page top" id="adminPage">
+  <div class="topbar-mini">
+    <h2 style="color:var(--primary2);font-size:17px;margin:0">پنل ادمین</h2>
+    <button class="btn btn-secondary btn-sm" onclick="logout()">خروج</button>
+  </div>
+  <div class="grid-btns" id="adminBtns" style="margin:0 auto;max-width:420px"></div>
+</div>
+
+<!-- USERS -->
+<div class="page top" id="usersPage">
+  <div class="topbar-mini">
+    <h2 style="color:var(--primary2);font-size:17px;margin:0">کاربران</h2>
+    <button class="btn btn-secondary btn-sm" onclick="backToStaff()">برگشت</button>
+  </div>
+  <div class="list" id="usersList" style="max-width:560px;margin:0 auto"></div>
+</div>
+
+<!-- ADD ADMIN -->
+<div class="page" id="addAdminPage">
+  <div class="form-box">
+    <h2>افزودن ادمین</h2>
+    <div id="addAdminStep1">
+      <div class="input-group"><label>رمز مدیر</label><input type="password" id="addAdminMgrPass" dir="ltr"></div>
+      <div class="error-msg" id="addAdminErr1"></div>
+      <div class="form-buttons">
+        <button class="btn btn-secondary" onclick="backToStaff()">برگشت</button>
+        <button class="btn btn-primary" onclick="addAdminStep2()">ادامه</button>
+      </div>
+    </div>
+    <div id="addAdminStep2" style="display:none">
+      <div class="input-group"><label>نام ادمین (انگلیسی)</label><input type="text" id="addAdminName" dir="ltr"></div>
+      <div class="input-group"><label>رمز عبور ادمین</label><input type="password" id="addAdminPass" dir="ltr"></div>
+      <div class="error-msg" id="addAdminErr2"></div>
+      <div class="form-buttons">
+        <button class="btn btn-secondary" onclick="document.getElementById('addAdminStep2').style.display='none';document.getElementById('addAdminStep1').style.display=''">قبلی</button>
+        <button class="btn btn-primary" onclick="saveNewAdmin()">ذخیره</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE ADMINS -->
+<div class="page top" id="manageAdminsPage">
+  <div class="topbar-mini">
+    <h2 style="color:var(--primary2);font-size:17px;margin:0">مدیریت ادمین</h2>
+    <button class="btn btn-secondary btn-sm" onclick="backToStaff()">برگشت</button>
+  </div>
+  <div class="list" id="adminsList" style="max-width:560px;margin:0 auto"></div>
+</div>
+
+<!-- ADMIN PERMS -->
+<div class="page" id="adminPermsPage">
+  <div class="form-box">
+    <h2>اختیارات ادمین</h2>
+    <p id="permAdminName" style="text-align:center;color:var(--muted);font-size:13px;margin-bottom:14px"></p>
+    <div class="row-between card" style="margin-bottom:8px"><span>مدیریت آزمون</span><label class="switch"><input type="checkbox" id="permExams"><span class="slider"></span></label></div>
+    <div class="row-between card" style="margin-bottom:8px"><span>مشاهده کاربران</span><label class="switch"><input type="checkbox" id="permUsers"><span class="slider"></span></label></div>
+    <div class="row-between card" style="margin-bottom:8px"><span>مشاهده آمار</span><label class="switch"><input type="checkbox" id="permStats"><span class="slider"></span></label></div>
+    <div class="form-buttons">
+      <button class="btn btn-secondary" onclick="showPage('manageAdminsPage')">برگشت</button>
+      <button class="btn btn-primary" onclick="saveAdminPerms()">ذخیره</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE EXAMS -->
+<div class="page top" id="manageExamsPage">
+  <div class="topbar-mini">
+    <h2 style="color:var(--primary2);font-size:17px;margin:0">مدیریت آزمون</h2>
+    <button class="btn btn-secondary btn-sm" onclick="backToStaff()">برگشت</button>
+  </div>
+  <div style="max-width:560px;margin:0 auto 12px;width:100%">
+    <button class="btn btn-primary" onclick="createNewExam()">＋ آزمون جدید</button>
+  </div>
+  <div class="list" id="manageExamsList" style="max-width:560px;margin:0 auto"></div>
+</div>
+
+<!-- EDIT EXAM -->
+<div class="page top" id="editExamPage">
+  <div class="topbar-mini">
+    <h2 style="color:var(--primary2);font-size:17px;margin:0">ویرایش آزمون</h2>
+    <button class="btn btn-secondary btn-sm" onclick="openManageExams()">برگشت</button>
+  </div>
+  <div class="panel" style="margin:0 auto">
+    <div class="input-group"><label>نام آزمون</label><input type="text" id="editExamName"></div>
+    <div class="input-group"><label>زمان (دقیقه) — برای آزمون رسمی</label><input type="number" id="editExamTime" min="1" value="30"></div>
+    <div class="input-group"><label>نوع</label>
+      <select id="editExamType">
+        <option value="practice">فقط آزمایشی</option>
+        <option value="exam">فقط آزمون</option>
+        <option value="both">هم آزمایشی هم آزمون</option>
+      </select>
+    </div>
+    <div class="row-between" style="margin-bottom:14px">
+      <span>فعال</span>
+      <label class="switch"><input type="checkbox" id="editExamEnabled" checked><span class="slider"></span></label>
+    </div>
+    <h3 style="font-size:14px;color:var(--muted);margin-bottom:10px">سوالات</h3>
+    <div id="editQuestions"></div>
+    <button class="btn btn-secondary" style="margin-bottom:12px" onclick="addQuestionEditor()">＋ افزودن سوال</button>
+    <button class="btn btn-primary" onclick="saveExamEdit()">ذخیره آزمون</button>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="page top" id="statsPage">
+  <div class="topbar-mini">
+    <h2 style="color:var(--primary2);font-size:17px;margin:0">آمار</h2>
+    <button class="btn btn-secondary btn-sm" onclick="backToStaff()">برگشت</button>
+  </div>
+  <div class="list" id="statsUserList" style="max-width:560px;margin:0 auto"></div>
+</div>
+
+<!-- STAT DETAIL -->
+<div class="page top" id="statsDetailPage">
+  <div class="topbar-mini">
+    <h2 style="color:var(--primary2);font-size:17px;margin:0" id="statsDetailTitle">جزئیات</h2>
+    <button class="btn btn-secondary btn-sm" onclick="showPage('statsPage')">برگشت</button>
+  </div>
+  <div id="statsDetailBody" style="max-width:560px;margin:0 auto;width:100%"></div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-bg" id="confirmModal">
+  <div class="modal">
+    <h3 id="confirmTitle">تأیید</h3>
+    <p id="confirmDesc"></p>
+    <div class="form-buttons">
+      <button class="btn btn-secondary" onclick="closeConfirm(false)">انصراف</button>
+      <button class="btn btn-primary" id="confirmOk" onclick="closeConfirm(true)">شروع</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ========== SUPABASE CONFIG — این دو مقدار را عوض کنید ========== */
+const SUPABASE_URL = 'https://ctroigigumaousendjsf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0cm9pZ2lndW1hb3VzZW5kanNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzMDk4ODMsImV4cCI6MjEwNjg4NTg4M30.NwhAawntBYzUaNeGL60Bk7P6drDOHXdQCkoeb-Mf114';
+/* ============================================================== */
+
+const MANAGER_PASS = '@Najm1092';
+
+function sbHeaders(extra){
+  return Object.assign({
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+    'Content-Type': 'application/json'
+  }, extra||{});
+}
+async function sbGet(table, query){
+  const url = SUPABASE_URL + '/rest/v1/' + table + (query ? ('?' + query) : '');
+  const res = await fetch(url, { headers: sbHeaders() });
+  if(!res.ok) throw new Error('GET '+table+' '+res.status);
+  return res.json();
+}
+async function sbUpsert(table, row, onConflict){
+  const url = SUPABASE_URL + '/rest/v1/' + table + (onConflict ? ('?on_conflict='+onConflict) : '');
+  const res = await fetch(url, {
+    method:'POST',
+    headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+    body: JSON.stringify(row)
+  });
+  if(!res.ok){
+    const t = await res.text();
+    throw new Error('UPSERT '+table+' '+res.status+' '+t);
+  }
+}
+async function sbInsert(table, row){
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table, {
+    method:'POST',
+    headers: sbHeaders({ 'Prefer': 'return=representation' }),
+    body: JSON.stringify(row)
+  });
+  if(!res.ok) throw new Error('INSERT '+table+' '+res.status);
+  return res.json();
+}
+async function sbDelete(table, query){
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?' + query, {
+    method:'DELETE', headers: sbHeaders({ 'Prefer': 'return=minimal' })
+  });
+  if(!res.ok) throw new Error('DELETE '+table);
+}
+async function sbUpdate(table, query, patch){
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?' + query, {
+    method:'PATCH', headers: sbHeaders({ 'Prefer': 'return=minimal' }), body: JSON.stringify(patch)
+  });
+  if(!res.ok) throw new Error('UPDATE '+table);
+}
+
+/* ===== state ===== */
+let currentUser = null;
+let isManager = false;
+let currentAdmin = null; // {name, password, perms, last_login}
+let examListMode = 'practice'; // practice | exam
+let activeExam = null;
+let answers = {}; // qIndex -> optionIndex
+let examTimer = null;
+let examEndsAt = 0;
+let editingExamId = null;
+let permAdminName = null;
+let confirmResolver = null;
+
+const SEED_QUESTIONS = [
+  {
+    text: 'In the Bell 205 lubrication system, what is the primary purpose of the oil cooler?',
+    options: ['To increase oil viscosity','To maintain optimal operating temperature','To filter out metallic particles'],
+    correct: 1
+  },
+  {
+    text: 'Which component is responsible for converting hydraulic fluid pressure into mechanical motion in the flight control system?',
+    options: ['Hydraulic Accumulator','Hydraulic Actuator','Hydraulic Pump'],
+    correct: 1
+  },
+  {
+    text: 'If the engine oil pressure indicator shows a “Low Pressure” warning, what is the immediate first action?',
+    options: ['Increase throttle to stabilize pressure','Check the oil quantity indicator','Inform ATC and prepare for emergency landing'],
+    correct: 2
+  },
+  {
+    text: 'The Bell 205 rotor system is classified as a:',
+    options: ['Fully articulated rotor system','Semi-rigid (teetering) rotor system','Rigid rotor system'],
+    correct: 1
+  },
+  {
+    text: 'What is the function of the Tachometer in the Bell 205 cockpit?',
+    options: ['To measure the altitude of the aircraft','To monitor the rotational speed of the engine/rotor','To indicate the airspeed of the helicopter'],
+    correct: 1
+  },
+  {
+    text: 'In the electrical system, what is the main function of the Voltage Regulator?',
+    options: ['To increase the total current output','To maintain a constant voltage level to the bus','To convert DC to AC'],
+    correct: 1
+  },
+  {
+    text: 'What could be a cause of excessive vibration in the main rotor system?',
+    options: ['Improperly balanced rotor blades','High fuel levels','Low hydraulic pressure'],
+    correct: 0
+  },
+  {
+    text: 'The Bell 205 uses which type of engine (standard configuration)?',
+    options: ['Turboprop engine','Turboshaft engine','Piston engine'],
+    correct: 1
+  },
+  {
+    text: 'What happens to the hydraulic system if the engine fails?',
+    options: ['Pressure is maintained indefinitely by the pump','Pressure drops immediately unless an emergency accumulator is used','The system automatically switches to electric power'],
+    correct: 1
+  },
+  {
+    text: 'Which instrument provides information regarding the aircraft’s vertical speed?',
+    options: ['Altimeter','Vertical Speed Indicator (VSI)','Airspeed Indicator'],
+    correct: 1
+  },
+  {
+    text: 'What is the primary function of the Fuel Control Unit (FCU) in the turbine engine?',
+    options: ['To filter impurities from the fuel','To regulate the fuel flow to the combustion chamber based on power demand','To increase the pressure of the fuel before injection'],
+    correct: 1
+  },
+  {
+    text: 'In the Bell 205, the Tail Rotor provides:',
+    options: ['Vertical lift','Anti-torque and directional control','Forward thrust'],
+    correct: 1
+  }
+];
+
+/* ===== UI helpers ===== */
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const el=document.getElementById(id);
+  if(el) el.classList.add('active');
+  const ham=document.getElementById('mainHam');
+  if(ham) ham.classList.toggle('hidden', id!=='homePage');
+  closeMenu();
+}
+function toggleMenu(){
+  document.getElementById('mainMenu').classList.toggle('show');
+  document.getElementById('menuOverlay').classList.toggle('show');
+}
+function closeMenu(){
+  document.getElementById('mainMenu').classList.remove('show');
+  document.getElementById('menuOverlay').classList.remove('show');
+}
+function toast(msg, type){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show'+(type?' '+type:'');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+function backToStaff(){
+  if(isManager) showPage('managerPage');
+  else showPage('adminPage');
+}
+function confirmModal(title, desc){
+  return new Promise(resolve=>{
+    confirmResolver=resolve;
+    document.getElementById('confirmTitle').textContent=title;
+    document.getElementById('confirmDesc').textContent=desc;
+    document.getElementById('confirmModal').classList.add('show');
+  });
+}
+function closeConfirm(ok){
+  document.getElementById('confirmModal').classList.remove('show');
+  if(confirmResolver) confirmResolver(ok);
+  confirmResolver=null;
+}
+function fmtTime(ts){
+  if(!ts) return '—';
+  try{ return new Date(ts).toLocaleString('fa-IR'); }catch(e){ return String(ts); }
+}
+function escapeHtml(s){
+  const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML;
+}
+
+/* ===== Auth ===== */
+function isEnglishUser(u){ return /^[a-zA-Z0-9_]{3,24}$/.test(u); }
+function isEnglishPass(p){ return /^[\x20-\x7E]{4,64}$/.test(p); }
+
+async function doRegister(){
+  const u=document.getElementById('regUser').value.trim();
+  const p=document.getElementById('regPass').value;
+  const err=document.getElementById('regErr');
+  err.style.display='block';
+  if(!isEnglishUser(u)){ err.textContent='نام کاربری باید انگلیسی (۳–۲۴ حرف، عدد یا _) باشد'; return; }
+  if(!isEnglishPass(p)){ err.textContent='رمز باید انگلیسی و حداقل ۴ کاراکتر باشد'; return; }
+  try{
+    const exists=await sbGet('exam_users','select=username&username=eq.'+encodeURIComponent(u.toLowerCase()));
+    if(exists && exists.length){ err.textContent='این نام کاربری قبلاً ثبت شده'; return; }
+    await sbUpsert('exam_users', {
+      username: u.toLowerCase(),
+      password: p,
+      created_at: new Date().toISOString(),
+      last_login: null
+    }, 'username');
+    toast('ثبت نام موفق','ok');
+    showPage('loginPage');
+    document.getElementById('loginUser').value=u.toLowerCase();
+  }catch(e){
+    console.error(e);
+    err.textContent='خطا در ثبت نام — تنظیمات Supabase را بررسی کنید';
+  }
+}
+
+async function doLogin(){
+  const u=document.getElementById('loginUser').value.trim().toLowerCase();
+  const p=document.getElementById('loginPass').value;
+  const err=document.getElementById('loginErr');
+  err.style.display='block'; err.textContent='در حال ورود...';
+  try{
+    const rows=await sbGet('exam_users','select=*&username=eq.'+encodeURIComponent(u));
+    const row=rows&&rows[0];
+    if(!row || row.password!==p){ err.textContent='نام کاربری یا رمز اشتباه است'; return; }
+    await sbUpdate('exam_users','username=eq.'+encodeURIComponent(u),{ last_login: new Date().toISOString() });
+    currentUser={ username: row.username, password: row.password };
+    isManager=false; currentAdmin=null;
+    document.getElementById('userWelcome').textContent=row.username;
+    showPage('userMainPage');
+  }catch(e){
+    console.error(e);
+    err.textContent='خطا در ورود';
+  }
+}
+
+async function doAdminLogin(){
+  const p=document.getElementById('adminPass').value;
+  const err=document.getElementById('adminErr');
+  err.style.display='block';
+  if(p===MANAGER_PASS){
+    isManager=true; currentAdmin=null; currentUser=null;
+    showPage('managerPage');
+    return;
+  }
+  try{
+    const rows=await sbGet('exam_admins','select=*');
+    const adm=(rows||[]).find(a=>a.password===p);
+    if(!adm){ err.textContent='رمز اشتباه است'; return; }
+    await sbUpdate('exam_admins','name=eq.'+encodeURIComponent(adm.name),{ last_login: new Date().toISOString() });
+    isManager=false; currentUser=null;
+    currentAdmin={
+      name: adm.name,
+      password: adm.password,
+      perms: typeof adm.perms==='string' ? JSON.parse(adm.perms||'{}') : (adm.perms||{}),
+      last_login: adm.last_login
+    };
+    renderAdminPanel();
+    showPage('adminPage');
+  }catch(e){
+    console.error(e);
+    err.textContent='خطا در ورود ادمین';
+  }
+}
+
+function logout(){
+  currentUser=null; isManager=false; currentAdmin=null;
+  stopExamTimer();
+  showPage('homePage');
+}
+
+function renderAdminPanel(){
+  const box=document.getElementById('adminBtns');
+  const p=currentAdmin&&currentAdmin.perms||{};
+  let html='';
+  if(p.users) html+='<button class="btn btn-primary" onclick="openUsers()">کاربران</button>';
+  if(p.exams) html+='<button class="btn btn-secondary" onclick="openManageExams()">مدیریت آزمون</button>';
+  if(p.stats) html+='<button class="btn btn-primary" onclick="openStats()">آمار</button>';
+  if(!html) html='<div class="empty">هیچ اختیاری برای شما فعال نیست</div>';
+  box.innerHTML=html;
+}
+
+/* ===== Users (manager) ===== */
+async function openUsers(){
+  if(!isManager && !(currentAdmin&&currentAdmin.perms.users)) return;
+  showPage('usersPage');
+  const list=document.getElementById('usersList');
+  list.innerHTML='<div class="loading">در حال بارگذاری...</div>';
+  try{
+    const rows=await sbGet('exam_users','select=*&order=last_login.desc.nullslast');
+    if(!rows||!rows.length){ list.innerHTML='<div class="empty">کاربری نیست</div>'; return; }
+    list.innerHTML=rows.map(u=>`
+      <div class="card">
+        <h4 dir="ltr">${escapeHtml(u.username)}</h4>
+        <div class="meta">رمز: <span dir="ltr">${escapeHtml(u.password)}</span></div>
+        <div class="meta">آخرین ورود: ${fmtTime(u.last_login)}</div>
+      </div>
+    `).join('');
+  }catch(e){ list.innerHTML='<div class="empty">خطا</div>'; }
+}
+
+/* ===== Admins ===== */
+function openAddAdmin(){
+  if(!isManager) return;
+  document.getElementById('addAdminStep1').style.display='';
+  document.getElementById('addAdminStep2').style.display='none';
+  document.getElementById('addAdminMgrPass').value='';
+  document.getElementById('addAdminErr1').style.display='none';
+  showPage('addAdminPage');
+}
+function addAdminStep2(){
+  const p=document.getElementById('addAdminMgrPass').value;
+  const err=document.getElementById('addAdminErr1');
+  if(p!==MANAGER_PASS){ err.style.display='block'; err.textContent='رمز مدیر اشتباه است'; return; }
+  document.getElementById('addAdminStep1').style.display='none';
+  document.getElementById('addAdminStep2').style.display='';
+}
+async function saveNewAdmin(){
+  const name=document.getElementById('addAdminName').value.trim();
+  const pass=document.getElementById('addAdminPass').value;
+  const err=document.getElementById('addAdminErr2');
+  err.style.display='block';
+  if(!isEnglishUser(name)){ err.textContent='نام انگلیسی ۳–۲۴ کاراکتر'; return; }
+  if(!pass||pass.length<4){ err.textContent='رمز حداقل ۴ حرف'; return; }
+  try{
+    await sbUpsert('exam_admins',{
+      name: name,
+      password: pass,
+      perms: { exams:true, users:false, stats:false },
+      last_login: null,
+      created_at: new Date().toISOString()
+    },'name');
+    toast('ادمین اضافه شد','ok');
+    openManageAdmins();
+  }catch(e){ err.textContent='خطا — شاید نام تکراری است'; }
+}
+
+async function openManageAdmins(){
+  if(!isManager) return;
+  showPage('manageAdminsPage');
+  const list=document.getElementById('adminsList');
+  list.innerHTML='<div class="loading">...</div>';
+  try{
+    const rows=await sbGet('exam_admins','select=*&order=name.asc');
+    if(!rows||!rows.length){ list.innerHTML='<div class="empty">ادمینی نیست</div>'; return; }
+    list.innerHTML=rows.map(a=>`
+      <div class="card">
+        <div class="row-between">
+          <h4 dir="ltr">${escapeHtml(a.name)}</h4>
+          <button class="btn btn-secondary btn-sm" onclick="openAdminPerms('${escapeHtml(a.name)}')">تنظیمات</button>
+        </div>
+        <div class="meta">رمز: <span dir="ltr">${escapeHtml(a.password)}</span></div>
+        <div class="meta">آخرین ورود: ${fmtTime(a.last_login)}</div>
+      </div>
+    `).join('');
+  }catch(e){ list.innerHTML='<div class="empty">خطا</div>'; }
+}
+
+async function openAdminPerms(name){
+  permAdminName=name;
+  document.getElementById('permAdminName').textContent=name;
+  try{
+    const rows=await sbGet('exam_admins','select=*&name=eq.'+encodeURIComponent(name));
+    const a=rows&&rows[0];
+    const p=typeof a.perms==='string'?JSON.parse(a.perms||'{}'):(a.perms||{});
+    document.getElementById('permExams').checked=!!p.exams;
+    document.getElementById('permUsers').checked=!!p.users;
+    document.getElementById('permStats').checked=!!p.stats;
+  }catch(e){}
+  showPage('adminPermsPage');
+}
+async function saveAdminPerms(){
+  const perms={
+    exams: document.getElementById('permExams').checked,
+    users: document.getElementById('permUsers').checked,
+    stats: document.getElementById('permStats').checked
+  };
+  try{
+    await sbUpdate('exam_admins','name=eq.'+encodeURIComponent(permAdminName),{ perms: perms });
+    toast('ذخیره شد','ok');
+    openManageAdmins();
+  }catch(e){ toast('خطا','err'); }
+}
+
+/* ===== Exams CRUD ===== */
+async function ensureSeedExams(){
+  try{
+    const rows=await sbGet('exams','select=id');
+    if(rows && rows.length) return;
+    // seed two exams
+    await sbInsert('exams', {
+      name: 'Bell 205 — Practice',
+      type: 'practice',
+      enabled: true,
+      time_limit: 0,
+      questions: SEED_QUESTIONS.slice(0,6)
+    });
+    await sbInsert('exams', {
+      name: 'Bell 205 — Full Exam',
+      type: 'both',
+      enabled: true,
+      time_limit: 20,
+      questions: SEED_QUESTIONS
+    });
+  }catch(e){ console.warn('seed', e); }
+}
+
+async function openManageExams(){
+  if(!isManager && !(currentAdmin&&currentAdmin.perms.exams)) return;
+  showPage('manageExamsPage');
+  await ensureSeedExams();
+  const list=document.getElementById('manageExamsList');
+  list.innerHTML='<div class="loading">...</div>';
+  try{
+    const rows=await sbGet('exams','select=*&order=id.asc');
+    if(!rows||!rows.length){ list.innerHTML='<div class="empty">آزمونی نیست</div>'; return; }
+    list.innerHTML=rows.map(ex=>{
+      const qs=Array.isArray(ex.questions)?ex.questions:(typeof ex.questions==='string'?JSON.parse(ex.questions):[]);
+      const typeLabel=ex.type==='both'?'آزمایشی + آزمون':(ex.type==='practice'?'آزمایشی':'آزمون');
+      return `<div class="card">
+        <div class="row-between">
+          <h4>${escapeHtml(ex.name)}</h4>
+          <label class="switch" title="فعال">
+            <input type="checkbox" ${ex.enabled?'checked':''} onchange="toggleExamEnabled(${ex.id}, this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="meta">
+          <span class="chip ${ex.type==='both'?'both':''}">${typeLabel}</span>
+          · ${qs.length} سوال
+          · زمان: ${ex.time_limit||0} دقیقه
+          · ${ex.enabled?'فعال':'غیرفعال'}
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-secondary btn-sm" onclick="editExamName(${ex.id})">تغییر نام</button>
+          <button class="btn btn-primary btn-sm" onclick="openEditExam(${ex.id})">ویرایش</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteExam(${ex.id})">حذف</button>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){ console.error(e); list.innerHTML='<div class="empty">خطا در بارگذاری</div>'; }
+}
+
+async function toggleExamEnabled(id, on){
+  try{ await sbUpdate('exams','id=eq.'+id,{ enabled: !!on }); toast(on?'فعال شد':'غیرفعال شد','ok'); }
+  catch(e){ toast('خطا','err'); }
+}
+async function editExamName(id){
+  const name=prompt('نام جدید آزمون:');
+  if(!name||!name.trim()) return;
+  try{ await sbUpdate('exams','id=eq.'+id,{ name: name.trim() }); openManageExams(); }
+  catch(e){ toast('خطا','err'); }
+}
+async function deleteExam(id){
+  if(!confirm('حذف این آزمون؟')) return;
+  try{ await sbDelete('exams','id=eq.'+id); openManageExams(); }
+  catch(e){ toast('خطا','err'); }
+}
+async function createNewExam(){
+  try{
+    const rows=await sbInsert('exams',{
+      name:'آزمون جدید',
+      type:'both',
+      enabled:true,
+      time_limit:15,
+      questions:[{ text:'سوال نمونه؟', options:['گزینه ۱','گزینه ۲','گزینه ۳'], correct:0 }]
+    });
+    const id=rows&&rows[0]&&rows[0].id;
+    if(id) openEditExam(id);
+    else openManageExams();
+  }catch(e){ toast('خطا در ساخت','err'); }
+}
+
+async function openEditExam(id){
+  editingExamId=id;
+  showPage('editExamPage');
+  try{
+    const rows=await sbGet('exams','select=*&id=eq.'+id);
+    const ex=rows&&rows[0];
+    if(!ex) return;
+    document.getElementById('editExamName').value=ex.name||'';
+    document.getElementById('editExamTime').value=ex.time_limit||30;
+    document.getElementById('editExamType').value=ex.type||'both';
+    document.getElementById('editExamEnabled').checked=!!ex.enabled;
+    const qs=Array.isArray(ex.questions)?ex.questions:(typeof ex.questions==='string'?JSON.parse(ex.questions):[]);
+    renderQuestionEditors(qs);
+  }catch(e){ toast('خطا','err'); }
+}
+
+function renderQuestionEditors(qs){
+  const box=document.getElementById('editQuestions');
+  box.innerHTML=(qs||[]).map((q,i)=>{
+    const opts=q.options||['','',''];
+    while(opts.length<3) opts.push('');
+    const optInputs=opts.map((o,j)=>`
+      <div class="input-group">
+        <label>گزینه ${j+1} ${q.correct===j?'(صحیح)':''}</label>
+        <input type="text" data-q="${i}" data-opt="${j}" value="${escapeHtml(o)}" dir="auto">
+      </div>
+    `).join('');
+    return `<div class="q-edit" data-qi="${i}">
+      <button type="button" class="btn btn-danger btn-sm rm" onclick="removeQuestionEditor(${i})">حذف سوال</button>
+      <div class="input-group"><label>متن سوال ${i+1}</label>
+        <textarea data-qtext="${i}" dir="auto">${escapeHtml(q.text||'')}</textarea>
+      </div>
+      ${optInputs}
+      <div class="input-group"><label>شماره گزینه صحیح (۱ تا ${opts.length})</label>
+        <input type="number" min="1" max="${opts.length}" data-qcorrect="${i}" value="${(q.correct|0)+1}">
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addOptionToQuestion(${i})">＋ گزینه</button>
+    </div>`;
+  }).join('');
+}
+
+function collectQuestionsFromEditors(){
+  const box=document.getElementById('editQuestions');
+  return [...box.querySelectorAll('.q-edit')].map(block=>{
+    const text=(block.querySelector('textarea[data-qtext]')||{}).value||'';
+    const options=[...block.querySelectorAll('input[data-opt]')].map(i=>i.value.trim());
+    let correct=parseInt((block.querySelector('input[data-qcorrect]')||{}).value||'1',10)-1;
+    if(correct<0) correct=0;
+    if(correct>=options.length) correct=options.length-1;
+    return { text: text.trim(), options: options.filter(o=>o.length), correct };
+  }).filter(q=>q.text && q.options.length>=2);
+}
+
+function addQuestionEditor(){
+  const qs=collectQuestionsFromEditors();
+  qs.push({ text:'', options:['','',''], correct:0 });
+  renderQuestionEditors(qs);
+}
+function removeQuestionEditor(i){
+  const qs=collectQuestionsFromEditors();
+  qs.splice(i,1);
+  renderQuestionEditors(qs);
+}
+function addOptionToQuestion(i){
+  const qs=collectQuestionsFromEditors();
+  if(!qs[i]) return;
+  if(qs[i].options.length>=6){ toast('حداکثر ۶ گزینه','err'); return; }
+  qs[i].options.push('');
+  renderQuestionEditors(qs);
+}
+
+async function saveExamEdit(){
+  const name=document.getElementById('editExamName').value.trim();
+  const time=parseInt(document.getElementById('editExamTime').value||'0',10);
+  const type=document.getElementById('editExamType').value;
+  const enabled=document.getElementById('editExamEnabled').checked;
+  const questions=collectQuestionsFromEditors();
+  if(!name){ toast('نام آزمون لازم است','err'); return; }
+  if(!questions.length){ toast('حداقل یک سوال لازم است','err'); return; }
+  for(const q of questions){
+    if(q.options.length<2){ toast('هر سوال حداقل ۲ گزینه','err'); return; }
+  }
+  try{
+    await sbUpdate('exams','id=eq.'+editingExamId,{
+      name, time_limit: time, type, enabled, questions
+    });
+    toast('ذخیره شد','ok');
+    openManageExams();
+  }catch(e){ console.error(e); toast('خطا در ذخیره','err'); }
+}
+
+/* ===== User exam flow ===== */
+async function openExamList(mode){
+  examListMode=mode;
+  document.getElementById('examListTitle').textContent=mode==='practice'?'آزمون‌های آزمایشی':'آزمون‌ها';
+  showPage('examListPage');
+  await ensureSeedExams();
+  const list=document.getElementById('examList');
+  list.innerHTML='<div class="loading">...</div>';
+  try{
+    const rows=await sbGet('exams','select=*&enabled=eq.true&order=id.asc');
+    const filtered=(rows||[]).filter(ex=>{
+      if(mode==='practice') return ex.type==='practice'||ex.type==='both';
+      return ex.type==='exam'||ex.type==='both';
+    });
+    if(!filtered.length){ list.innerHTML='<div class="empty">آزمونی موجود نیست</div>'; return; }
+    list.innerHTML=filtered.map(ex=>{
+      const qs=Array.isArray(ex.questions)?ex.questions:(typeof ex.questions==='string'?JSON.parse(ex.questions):[]);
+      const timeTxt=mode==='practice'?'بدون محدودیت زمان':((ex.time_limit||0)+' دقیقه');
+      return `<div class="card" style="cursor:pointer" onclick="startExamFlow(${ex.id},'${mode}')">
+        <h4>${escapeHtml(ex.name)}</h4>
+        <div class="meta">${qs.length} سوال · ${timeTxt}</div>
+      </div>`;
+    }).join('');
+  }catch(e){ list.innerHTML='<div class="empty">خطا</div>'; }
+}
+
+async function startExamFlow(id, mode){
+  try{
+    const rows=await sbGet('exams','select=*&id=eq.'+id);
+    const ex=rows&&rows[0];
+    if(!ex) return;
+    const qs=Array.isArray(ex.questions)?ex.questions:(typeof ex.questions==='string'?JSON.parse(ex.questions):[]);
+    if(mode==='practice'){
+      beginExam(ex, qs, 'practice');
+      return;
+    }
+    const ok=await confirmModal(
+      'شروع آزمون؟',
+      `نام: ${ex.name}\nتعداد سوالات: ${qs.length}\nزمان: ${ex.time_limit||0} دقیقه\n\nآیا مطمئن هستید؟`
+    );
+    if(ok) beginExam(ex, qs, 'exam');
+  }catch(e){ toast('خطا','err'); }
+}
+
+function beginExam(ex, qs, mode){
+  activeExam={ exam:ex, questions:qs, mode:mode, startedAt: Date.now() };
+  answers={};
+  stopExamTimer();
+  document.getElementById('takeExamName').textContent=ex.name;
+  document.getElementById('finishBar').style.display = mode==='exam' ? 'block' : 'none';
+  document.getElementById('takeExamBackBtn').style.display = mode==='practice' ? '' : 'none';
+  if(mode==='exam' && ex.time_limit>0){
+    examEndsAt = Date.now() + ex.time_limit*60*1000;
+    examTimer=setInterval(updateExamTimer, 500);
+  }
+  renderTakeExam();
+  showPage('takeExamPage');
+}
+
+function stopExamTimer(){
+  if(examTimer){ clearInterval(examTimer); examTimer=null; }
+}
+
+function updateExamTimer(){
+  const left=Math.max(0, examEndsAt-Date.now());
+  const m=Math.floor(left/60000);
+  const s=Math.floor((left%60000)/1000);
+  const el=document.getElementById('timerStat');
+  if(el) el.textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  if(left<=0){ stopExamTimer(); finishExam(true); }
+}
+
+function renderTakeExam(){
+  if(!activeExam) return;
+  const qs=activeExam.questions;
+  const mode=activeExam.mode;
+  let correct=0, wrong=0;
+  qs.forEach((q,i)=>{
+    if(answers[i]===undefined) return;
+    if(answers[i]===q.correct) correct++; else wrong++;
+  });
+  let stats='';
+  if(mode==='practice'){
+    stats=`<span class="ok">درست: ${correct}</span><span class="err">غلط: ${wrong}</span>`;
+  } else {
+    stats=`<span class="time" id="timerStat">--:--</span><span>پاسخ‌داده: ${Object.keys(answers).length}/${qs.length}</span>`;
+    if(examEndsAt) updateExamTimer();
+  }
+  document.getElementById('takeExamStats').innerHTML=stats;
+
+  const body=document.getElementById('takeExamBody');
+  body.innerHTML=qs.map((q,qi)=>{
+    const opts=q.options||[];
+    const answered=answers[qi]!==undefined;
+    const optHtml=opts.map((o,oi)=>{
+      let cls='opt';
+      if(mode==='practice' && answered){
+        if(oi===q.correct) cls+=' correct';
+        else if(oi===answers[qi]) cls+=' wrong';
+      } else if(answers[qi]===oi){
+        cls+=' selected';
+      }
+      const dis = mode==='practice' && answered ? 'disabled' : '';
+      return `<button type="button" class="${cls}" ${dis} onclick="answerQuestion(${qi},${oi})">${escapeHtml(o)}</button>`;
+    }).join('');
+    return `<div class="q-card" id="qcard_${qi}">
+      <div class="q-num">سوال ${qi+1} از ${qs.length}</div>
+      <div class="q-text" dir="auto">${escapeHtml(q.text)}</div>
+      ${optHtml}
+    </div>`;
+  }).join('');
+}
+
+function answerQuestion(qi, oi){
+  if(!activeExam) return;
+  if(activeExam.mode==='practice' && answers[qi]!==undefined) return;
+  answers[qi]=oi;
+  renderTakeExam();
+}
+
+function leaveExam(){
+  if(activeExam&&activeExam.mode==='exam'){
+    if(!confirm('آزمون تمام نشده. خارج می‌شوید؟')) return;
+  }
+  stopExamTimer();
+  activeExam=null;
+  showPage('userMainPage');
+}
+
+async function finishExam(auto){
+  if(!activeExam||activeExam.mode!=='exam') return;
+  if(!auto){
+    const ok=await confirmModal('پایان آزمون','آیا از پایان آزمون مطمئن هستید؟');
+    if(!ok) return;
+  }
+  stopExamTimer();
+  const qs=activeExam.questions;
+  let correct=0, wrong=0, unanswered=0;
+  const correctIds=[], wrongIds=[];
+  qs.forEach((q,i)=>{
+    if(answers[i]===undefined){ unanswered++; return; }
+    if(answers[i]===q.correct){ correct++; correctIds.push(i+1); }
+    else { wrong++; wrongIds.push(i+1); }
+  });
+  const finishedAt=Date.now();
+  const payload={
+    username: currentUser.username,
+    exam_id: activeExam.exam.id,
+    exam_name: activeExam.exam.name,
+    started_at: new Date(activeExam.startedAt).toISOString(),
+    finished_at: new Date(finishedAt).toISOString(),
+    correct, wrong, unanswered,
+    details: { correctIds, wrongIds, answers }
+  };
+  try{ await sbInsert('exam_results', payload); }catch(e){ console.error(e); }
+
+  document.getElementById('resultContent').innerHTML=`
+    <div class="big">${correct} / ${qs.length}</div>
+    <p>درست: <b style="color:var(--ok)">${correct}</b> — سوالات: ${correctIds.join(', ')||'—'}</p>
+    <p>غلط: <b style="color:var(--err)">${wrong}</b> — سوالات: ${wrongIds.join(', ')||'—'}</p>
+    <p>بدون پاسخ: <b>${unanswered}</b></p>
+    <p style="margin-top:10px;font-size:12px;color:var(--muted)">زمان پایان: ${fmtTime(finishedAt)}</p>
+  `;
+  activeExam=null;
+  showPage('resultPage');
+}
+
+/* ===== Stats ===== */
+async function openStats(){
+  if(!isManager && !(currentAdmin&&currentAdmin.perms.stats)) return;
+  showPage('statsPage');
+  const list=document.getElementById('statsUserList');
+  list.innerHTML='<div class="loading">...</div>';
+  try{
+    const users=await sbGet('exam_users','select=username,last_login&order=username.asc');
+    if(!users||!users.length){ list.innerHTML='<div class="empty">کاربری نیست</div>'; return; }
+    list.innerHTML=users.map(u=>`
+      <div class="card" style="cursor:pointer" onclick="openUserStats('${escapeHtml(u.username)}')">
+        <h4 dir="ltr">${escapeHtml(u.username)}</h4>
+        <div class="meta">آخرین ورود: ${fmtTime(u.last_login)}</div>
+      </div>
+    `).join('');
+  }catch(e){ list.innerHTML='<div class="empty">خطا</div>'; }
+}
+
+async function openUserStats(username){
+  document.getElementById('statsDetailTitle').textContent=username;
+  showPage('statsDetailPage');
+  const body=document.getElementById('statsDetailBody');
+  body.innerHTML='<div class="loading">...</div>';
+  try{
+    const rows=await sbGet('exam_results','select=*&username=eq.'+encodeURIComponent(username)+'&order=finished_at.desc');
+    if(!rows||!rows.length){ body.innerHTML='<div class="empty">هنوز در آزمونی شرکت نکرده</div>'; return; }
+    body.innerHTML=rows.map(r=>`
+      <div class="card">
+        <h4>${escapeHtml(r.exam_name||('آزمون #'+r.exam_id))}</h4>
+        <div class="meta">پایان: ${fmtTime(r.finished_at)}</div>
+        <div class="meta">شروع: ${fmtTime(r.started_at)}</div>
+        <div class="meta">درست: <b style="color:var(--ok)">${r.correct}</b> · غلط: <b style="color:var(--err)">${r.wrong}</b> · بدون پاسخ: ${r.unanswered}</div>
+      </div>
+    `).join('');
+  }catch(e){ body.innerHTML='<div class="empty">خطا</div>'; }
+}
+
+/* boot */
+showPage('homePage');
+</script>
+</body>
+</html>
