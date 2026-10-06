@@ -285,6 +285,44 @@ body.dark .radio-opt input[type=text]{background:#12141c}
   visibility:hidden!important;
 }
 
+
+.back-corner{
+  position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));
+  z-index:150;width:auto!important;min-width:0!important;padding:6px 10px!important;font-size:12px!important;
+  min-height:32px!important;border-radius:8px
+}
+.admin-row{
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:8px 12px;font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px
+}
+.admin-row .an{font-weight:700}
+.exam-card-passed{
+  opacity:.7!important;
+  border-color:rgba(5,150,105,.45)!important;
+  background:rgba(5,150,105,.08)!important
+}
+body.dark .exam-card-passed{background:rgba(52,211,153,.1)!important}
+.q-text[dir=ltr], .opt[dir=ltr], .opt.ltr{text-align:left!important;direction:ltr!important}
+.type-dropdown{position:relative}
+.type-dropdown-btn{
+  width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--border);
+  background:var(--card);color:var(--text);text-align:right;cursor:pointer;font-size:14px
+}
+.type-dropdown-menu{
+  display:none;position:absolute;left:0;right:0;top:110%;z-index:20;
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  box-shadow:var(--shadow);overflow:hidden;animation:popIn .2s ease
+}
+.type-dropdown-menu.open{display:block}
+.type-dropdown-menu button{
+  display:block;width:100%;text-align:right;padding:12px 14px;border:none;
+  background:transparent;color:var(--text);cursor:pointer;font-size:13px
+}
+.type-dropdown-menu button:hover,.type-dropdown-menu button.active{
+  background:rgba(91,76,219,.12);color:var(--primary)
+}
+.bank-pick{border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:10px;background:var(--card)}
+
 </style>
 </head>
 <body>
@@ -377,6 +415,40 @@ body.dark .radio-opt input[type=text]{background:#12141c}
   </div>
 </div>
 
+
+<!-- QUESTION BANKS -->
+<div class="page top" id="banksPage">
+  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="backToStaff()">برگشت</button>
+  <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center">بانک سوال</h2>
+  <div style="max-width:560px;margin:0 auto 12px;width:100%" id="banksAddWrap">
+    <button class="btn btn-primary" onclick="createQuestionBank()">＋ افزودن بانک</button>
+  </div>
+  <div class="list" id="banksList" style="max-width:560px;margin:0 auto"></div>
+</div>
+
+<div class="page top" id="editBankPage">
+  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="openQuestionBanks()">برگشت</button>
+  <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center" id="editBankTitle">ویرایش بانک</h2>
+  <div class="panel" style="margin:0 auto">
+    <div class="input-group"><label>نام بانک</label><input type="text" id="editBankName"></div>
+    <div class="row-between" style="margin-bottom:12px"><span>فعال</span>
+      <label class="switch"><input type="checkbox" id="editBankEnabled" checked><span class="slider"></span></label>
+    </div>
+    <div id="editBankQuestions"></div>
+    <button class="btn btn-secondary" style="margin-bottom:10px" onclick="addBankQuestion()">＋ افزودن سوال</button>
+    <button class="btn btn-primary" onclick="saveBankEdit()">ذخیره بانک</button>
+  </div>
+</div>
+
+<div class="page top" id="pickBankPage">
+  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="showPage('editExamPage')">برگشت</button>
+  <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center">انتخاب از بانک</h2>
+  <div id="pickBankList" style="max-width:560px;margin:0 auto;width:100%"></div>
+  <div style="max-width:560px;margin:12px auto;width:100%">
+    <button class="btn btn-primary" onclick="applyPickedFromBanks()">افزودن به آزمون</button>
+  </div>
+</div>
+
 <!-- MY STATS -->
 <div class="page top" id="myStatsPage">
   <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="showPage('userMainPage')">برگشت</button>
@@ -440,6 +512,7 @@ body.dark .radio-opt input[type=text]{background:#12141c}
     <button class="btn btn-secondary" onclick="openAddAdmin()">افزودن ادمین</button>
     <button class="btn btn-secondary" onclick="openManageAdmins()">مدیریت ادمین</button>
     <button class="btn btn-secondary" onclick="openManageExams()">مدیریت آزمون</button>
+    <button class="btn btn-secondary" onclick="openQuestionBanks()">بانک سوال</button>
     <button class="btn btn-primary" onclick="openStats()" style="grid-column:1/-1">آمار</button>
     </div>
   </div>
@@ -503,6 +576,8 @@ body.dark .radio-opt input[type=text]{background:#12141c}
     <div class="row-between card" style="margin-bottom:8px" data-perm="managePractice"><span>مدیریت آزمون آزمایشی</span><label class="switch"><input type="checkbox" id="permManagePractice"><span class="slider"></span></label></div>
     <div class="row-between card" style="margin-bottom:8px" data-perm="manageExam"><span>مدیریت آزمون</span><label class="switch"><input type="checkbox" id="permManageExam"><span class="slider"></span></label></div>
     <div class="row-between card" style="margin-bottom:8px" data-perm="stats"><span>مشاهده آمار</span><label class="switch"><input type="checkbox" id="permStats"><span class="slider"></span></label></div>
+    <div class="row-between card" style="margin-bottom:8px" data-perm="viewBanks"><span>مشاهده بانک سوال</span><label class="switch"><input type="checkbox" id="permViewBanks"><span class="slider"></span></label></div>
+    <div class="row-between card" style="margin-bottom:8px" data-perm="editBanks"><span>ویرایش بانک سوال</span><label class="switch"><input type="checkbox" id="permEditBanks"><span class="slider"></span></label></div>
     <div class="form-buttons">
       <button class="btn btn-secondary" onclick="showPage('manageAdminsPage')">برگشت</button>
       <button class="btn btn-primary" onclick="saveAdminPerms()">ذخیره</button>
@@ -532,11 +607,19 @@ body.dark .radio-opt input[type=text]{background:#12141c}
       <div class="score-formula">هر ۳ پاسخ غلط = ۱ پاسخ صحیح می‌سوزد</div>
     </div>
     <div class="input-group"><label>نوع آزمون</label>
-      <div class="type-pick" id="editExamTypePick">
-        <label><input type="radio" name="editExamType" value="practice"> فقط آزمایشی</label>
-        <label><input type="radio" name="editExamType" value="exam"> فقط آزمون</label>
-        <label><input type="radio" name="editExamType" value="both" checked> هم آزمایشی هم آزمون</label>
+      <div class="type-dropdown" id="editExamTypePick">
+        <button type="button" class="type-dropdown-btn" id="examTypeBtn" onclick="toggleExamTypeMenu()">هم آزمایشی هم آزمون ▾</button>
+        <div class="type-dropdown-menu" id="examTypeMenu">
+          <button type="button" data-val="practice" onclick="selectExamType('practice')">فقط آزمایشی</button>
+          <button type="button" data-val="exam" onclick="selectExamType('exam')">فقط آزمون</button>
+          <button type="button" data-val="both" onclick="selectExamType('both')">هم آزمایشی هم آزمون</button>
+        </div>
+        <input type="hidden" id="editExamTypeVal" value="both">
       </div>
+    </div>
+    <div class="form-buttons" style="margin-bottom:14px" id="examAddQBtns">
+      <button type="button" class="btn btn-secondary" onclick="addQuestionEditor()">＋ افزودن سوال</button>
+      <button type="button" class="btn btn-primary" onclick="openPickFromBank()">انتخاب از بانک</button>
     </div>
     <div class="row-between" style="margin-bottom:14px">
       <span>فعال</span>
@@ -704,68 +787,122 @@ let editingExamId = null;
 let permAdminName = null;
 let confirmResolver = null;
 
+
 const SEED_QUESTIONS = [
-  {
-    text: 'In the Bell 205 lubrication system, what is the primary purpose of the oil cooler?',
-    options: ['To increase oil viscosity','To maintain optimal operating temperature','To filter out metallic particles'],
-    correct: 1
-  },
-  {
-    text: 'Which component is responsible for converting hydraulic fluid pressure into mechanical motion in the flight control system?',
-    options: ['Hydraulic Accumulator','Hydraulic Actuator','Hydraulic Pump'],
-    correct: 1
-  },
-  {
-    text: 'If the engine oil pressure indicator shows a “Low Pressure” warning, what is the immediate first action?',
-    options: ['Increase throttle to stabilize pressure','Check the oil quantity indicator','Inform ATC and prepare for emergency landing'],
-    correct: 2
-  },
-  {
-    text: 'The Bell 205 rotor system is classified as a:',
-    options: ['Fully articulated rotor system','Semi-rigid (teetering) rotor system','Rigid rotor system'],
-    correct: 1
-  },
-  {
-    text: 'What is the function of the Tachometer in the Bell 205 cockpit?',
-    options: ['To measure the altitude of the aircraft','To monitor the rotational speed of the engine/rotor','To indicate the airspeed of the helicopter'],
-    correct: 1
-  },
-  {
-    text: 'In the electrical system, what is the main function of the Voltage Regulator?',
-    options: ['To increase the total current output','To maintain a constant voltage level to the bus','To convert DC to AC'],
-    correct: 1
-  },
-  {
-    text: 'What could be a cause of excessive vibration in the main rotor system?',
-    options: ['Improperly balanced rotor blades','High fuel levels','Low hydraulic pressure'],
-    correct: 0
-  },
-  {
-    text: 'The Bell 205 uses which type of engine (standard configuration)?',
-    options: ['Turboprop engine','Turboshaft engine','Piston engine'],
-    correct: 1
-  },
-  {
-    text: 'What happens to the hydraulic system if the engine fails?',
-    options: ['Pressure is maintained indefinitely by the pump','Pressure drops immediately unless an emergency accumulator is used','The system automatically switches to electric power'],
-    correct: 1
-  },
-  {
-    text: 'Which instrument provides information regarding the aircraft’s vertical speed?',
-    options: ['Altimeter','Vertical Speed Indicator (VSI)','Airspeed Indicator'],
-    correct: 1
-  },
-  {
-    text: 'What is the primary function of the Fuel Control Unit (FCU) in the turbine engine?',
-    options: ['To filter impurities from the fuel','To regulate the fuel flow to the combustion chamber based on power demand','To increase the pressure of the fuel before injection'],
-    correct: 1
-  },
-  {
-    text: 'In the Bell 205, the Tail Rotor provides:',
-    options: ['Vertical lift','Anti-torque and directional control','Forward thrust'],
-    correct: 1
-  }
+  { text:'In the Bell 205 lubrication system, what is the primary purpose of the oil cooler?', options:['To increase oil viscosity','To maintain optimal operating temperature','To filter out metallic particles'], correct:1 },
+  { text:'Which component converts hydraulic fluid pressure into mechanical motion in the flight control system?', options:['Hydraulic Accumulator','Hydraulic Actuator','Hydraulic Pump'], correct:1 },
+  { text:'If the engine oil pressure indicator shows a Low Pressure warning, the immediate first action is:', options:['Increase throttle to stabilize pressure','Check the oil quantity indicator','Inform ATC and prepare for emergency landing'], correct:2 },
+  { text:'The Bell 205 rotor system is classified as a:', options:['Fully articulated rotor system','Semi-rigid (teetering) rotor system','Rigid rotor system'], correct:1 },
+  { text:'What is the function of the Tachometer in the cockpit?', options:['To measure altitude','To monitor rotational speed of the engine/rotor','To indicate airspeed'], correct:1 },
+  { text:'Main function of the Voltage Regulator:', options:['Increase total current output','Maintain constant voltage to the bus','Convert DC to AC'], correct:1 },
+  { text:'A cause of excessive vibration in the main rotor system:', options:['Improperly balanced rotor blades','High fuel levels','Low hydraulic pressure'], correct:0 },
+  { text:'The Bell 205 uses which type of engine (standard)?', options:['Turboprop','Turboshaft','Piston'], correct:1 },
+  { text:'If the engine fails, hydraulic system pressure:', options:['Is maintained indefinitely by the pump','Drops unless emergency accumulator is used','Switches to electric power automatically'], correct:1 },
+  { text:'Instrument for aircraft vertical speed:', options:['Altimeter','Vertical Speed Indicator (VSI)','Airspeed Indicator'], correct:1 },
+  { text:'Primary function of the Fuel Control Unit (FCU):', options:['Filter fuel impurities','Regulate fuel flow based on power demand','Only increase fuel pressure'], correct:1 },
+  { text:'The Tail Rotor provides:', options:['Vertical lift','Anti-torque and directional control','Forward thrust only'], correct:1 }
 ];
+
+/* بانک‌های پیش‌فرض EASA Part-66 B1/B2 — سوالات در خود سایت */
+const DEFAULT_BANKS = [
+  { id:'m1', name:'Module 1 — Mathematics', enabled:true, questions:[
+    { text:'What is the value of π (pi) approximately?', options:['2.14','3.14','4.13','1.41'], correct:1 },
+    { text:'The square root of 144 is:', options:['11','12','14','16'], correct:1 },
+    { text:'Ohm\'s law relates voltage, current and:', options:['Power only','Resistance','Frequency','Capacitance'], correct:1 }
+  ]},
+  { id:'m2', name:'Module 2 — Physics', enabled:true, questions:[
+    { text:'SI unit of force is:', options:['Joule','Newton','Watt','Pascal'], correct:1 },
+    { text:'Pressure equals:', options:['Force × Area','Force / Area','Mass × Acceleration','Work / Time'], correct:1 },
+    { text:'Temperature in Kelvin equals Celsius plus:', options:['100','273','32','460'], correct:1 }
+  ]},
+  { id:'m3', name:'Module 3 — Electrical Fundamentals', enabled:true, questions:[
+    { text:'Unit of electrical resistance is:', options:['Volt','Ampere','Ohm','Watt'], correct:2 },
+    { text:'In a series circuit, current is:', options:['Different in each component','The same through all components','Zero','Infinite'], correct:1 },
+    { text:'A capacitor stores energy in a:', options:['Magnetic field','Electric field','Mechanical spring','Chemical cell only'], correct:1 }
+  ]},
+  { id:'m4', name:'Module 4 — Electronic Fundamentals', enabled:true, questions:[
+    { text:'A diode primarily allows current to flow:', options:['In both directions equally','In one direction','Only at high voltage','Never'], correct:1 },
+    { text:'A transistor can be used as:', options:['Only a resistor','A switch or amplifier','Only a battery','A mechanical relay only'], correct:1 }
+  ]},
+  { id:'m5', name:'Module 5 — Digital Techniques / EIS', enabled:true, questions:[
+    { text:'Binary number 1010 equals decimal:', options:['8','10','12','15'], correct:1 },
+    { text:'EEPROM is a type of:', options:['Volatile memory only','Non-volatile memory','Mechanical storage','Display'], correct:1 }
+  ]},
+  { id:'m6', name:'Module 6 — Materials and Hardware', enabled:true, questions:[
+    { text:'Aluminium alloys are widely used in aircraft because of:', options:['High density','Good strength-to-weight ratio','Poor corrosion resistance','Magnetic properties'], correct:1 },
+    { text:'A rivet is primarily a:', options:['Temporary fastener','Permanent fastener','Electrical connector','Sealant'], correct:1 }
+  ]},
+  { id:'m7', name:'Module 7 — Maintenance Practices', enabled:true, questions:[
+    { text:'Torque wrenches are used to:', options:['Measure electrical resistance','Apply a specified tightening torque','Cut safety wire','Measure pressure'], correct:1 },
+    { text:'Before maintenance, the aircraft should be:', options:['Left powered always','Made safe (e.g. powered down / tagged as required)','Fueled to maximum','In flight'], correct:1 }
+  ]},
+  { id:'m8', name:'Module 8 — Basic Aerodynamics', enabled:true, questions:[
+    { text:'Lift is primarily generated by:', options:['The landing gear','Pressure difference over the wing','Fuel flow','Cabin pressure'], correct:1 },
+    { text:'Angle of attack is the angle between the chord line and:', options:['The horizon only','The relative airflow','The fuselage floor','The thrust line always'], correct:1 }
+  ]},
+  { id:'m9', name:'Module 9 — Human Factors', enabled:true, questions:[
+    { text:'The "Dirty Dozen" refers to:', options:['Twelve aircraft types','Common human factor error precursors','Twelve tools','Weather codes'], correct:1 },
+    { text:'Fatigue in maintenance staff can:', options:['Improve accuracy','Increase risk of errors','Eliminate the need for procedures','Replace training'], correct:1 }
+  ]},
+  { id:'m10', name:'Module 10 — Aviation Legislation', enabled:true, questions:[
+    { text:'EASA Part-66 relates to:', options:['Airport design','Aircraft maintenance licensing','Pilot flight hours only','Cargo loading'], correct:1 },
+    { text:'A Certificate of Airworthiness is associated with:', options:['Pilot medical only','Aircraft airworthiness status','Fuel quality only','ATC licence'], correct:1 }
+  ]},
+  { id:'m11', name:'Module 11 — Turbine Aeroplane Systems (B1.1)', enabled:true, questions:[
+    { text:'A turbofan engine produces thrust mainly by:', options:['Propeller only','Accelerating a mass of air','Hydraulic pressure','Electrical generators'], correct:1 },
+    { text:'Bleed air is commonly taken from:', options:['The cabin only','Engine compressor stages','The fuel tank','The battery'], correct:1 }
+  ]},
+  { id:'m12', name:'Module 12 — Helicopter Aerodynamics & Systems (B1)', enabled:true, questions: SEED_QUESTIONS },
+  { id:'m13', name:'Module 13 — Aircraft Aerodynamics & Systems (B2)', enabled:true, questions:[
+    { text:'An ADC (Air Data Computer) processes:', options:['Only engine oil pressure','Pitot-static and related air data','Cabin entertainment','Landing gear squat switch only'], correct:1 },
+    { text:'Fly-by-wire systems replace many:', options:['Fuel tanks','Mechanical control linkages with electrical signals','Windows','Tyres'], correct:1 }
+  ]},
+  { id:'m14', name:'Module 14 — Propulsion (B2)', enabled:true, questions:[
+    { text:'FADEC stands for:', options:['Full Authority Digital Engine Control','Fuel And Data Engine Computer','Fixed Axis Dual Engine Control','Flight Assisted Digital Electronic Computer'], correct:0 }
+  ]},
+  { id:'m15', name:'Module 15 — Gas Turbine Engine (B1)', enabled:true, questions:[
+    { text:'Main sections of a gas turbine include:', options:['Compressor, combustion, turbine','Only propeller and battery','Only flaps and slats','Undercarriage only'], correct:0 },
+    { text:'N1 commonly indicates:', options:['Oil quantity','Fan/LP rotational speed','Cabin altitude','Hydraulic pressure'], correct:1 }
+  ]},
+  { id:'m16', name:'Module 16 — Piston Engine (B1)', enabled:true, questions:[
+    { text:'A four-stroke cycle order is typically:', options:['Power, exhaust, intake, compression','Intake, compression, power, exhaust','Exhaust, power, intake, compression','Compression, intake, exhaust, power'], correct:1 }
+  ]},
+  { id:'m17', name:'Module 17 — Propeller (B1)', enabled:true, questions:[
+    { text:'A constant-speed propeller aims to:', options:['Keep RPM approximately constant by changing blade angle','Always stay feathered','Replace the engine','Measure fuel flow'], correct:0 }
+  ]}
+];
+
+let APP = { banks: null, examsLocal: null };
+
+function defaultAppState(){
+  return {
+    banks: JSON.parse(JSON.stringify(DEFAULT_BANKS)),
+    examsExtra: []
+  };
+}
+function loadLocalApp(){
+  try{
+    const raw=localStorage.getItem('exam_app_v2');
+    if(raw){
+      const o=JSON.parse(raw);
+      if(o && o.banks) return o;
+    }
+  }catch(e){}
+  return defaultAppState();
+}
+function saveLocalApp(data){
+  try{ localStorage.setItem('exam_app_v2', JSON.stringify(data)); }catch(e){}
+}
+function getBanks(){
+  const d=loadLocalApp();
+  return d.banks||[];
+}
+function setBanks(banks){
+  const d=loadLocalApp();
+  d.banks=banks;
+  saveLocalApp(d);
+}
+
 
 /* ===== UI helpers ===== */
 function showPage(id){
@@ -786,11 +923,28 @@ function updateMenuForPage(id){
   if(!menu) return;
   if(id==="homePage"){
     menu.innerHTML = "<button type=\"button\" onclick=\"closeMenu();showPage(\'adminLoginPage\')\">ورود ادمین</button>";
-  } else if(id==="userMainPage"||id==="managerPage"||id==="adminPage"){
+  } else if(id==="userMainPage"){
+    menu.innerHTML = "<button type=\"button\" onclick=\"closeMenu();startChangePass()\">تغییر رمز</button>"+
+      "<button type=\"button\" onclick=\"closeMenu();startDeleteAccount()\">حذف حساب</button>";
+  } else if(id==="managerPage"||id==="adminPage"){
     menu.innerHTML = "<button type=\"button\" onclick=\"closeMenu();startChangePass()\">تغییر رمز</button>";
   } else {
     menu.innerHTML = "";
   }
+}
+async function startDeleteAccount(){
+  if(!currentUser) return;
+  const ok=await confirmModal('حذف حساب','آیا از حذف حساب خود مطمئن هستید؟ این عمل برگشت‌ناپذیر است.','ادامه');
+  if(!ok) return;
+  const pass=prompt('رمز حساب را وارد کنید:');
+  if(pass===null) return;
+  if(pass!==currentUser.password){ toast('رمز اشتباه است','err'); return; }
+  try{
+    await sbDelete('exam_users','username=eq.'+encodeURIComponent(currentUser.username));
+    try{ await sbDelete('exam_results','username=eq.'+encodeURIComponent(currentUser.username)); }catch(e){}
+    toast('حساب حذف شد','ok');
+    logout();
+  }catch(e){ toast('خطا در حذف','err'); }
 }
 function toggleNight(){
   document.body.classList.toggle('dark');
@@ -1035,8 +1189,11 @@ async function openMyStats(){
   const body=document.getElementById('myStatsBody');
   body.innerHTML='<div class="loading">...</div>';
   try{
-    const rows=await sbGet('exam_results','select=*&username=eq.'+encodeURIComponent(currentUser.username)+'&order=finished_at.desc');
-    if(!rows||!rows.length){ body.innerHTML='<div class="empty">هنوز آزمونی نداده‌اید</div>'; return; }
+    let rows=await sbGet('exam_results','select=*&username=eq.'+encodeURIComponent(currentUser.username)+'&order=finished_at.desc');
+    let liveIds={};
+    try{ const exams=await sbGet('exams','select=id'); (exams||[]).forEach(function(e){ liveIds[String(e.id)]=1; }); }catch(e){}
+    rows=(rows||[]).filter(function(r){ return liveIds[String(r.exam_id)]; });
+    if(!rows.length){ body.innerHTML='<div class="empty">هنوز آزمونی نداده‌اید</div>'; return; }
     let c=0,w=0,u=0;
     rows.forEach(r=>{ c+=r.correct|0; w+=r.wrong|0; u+=r.unanswered|0; });
     let html=`<div class="card" style="margin-bottom:12px">
@@ -1082,6 +1239,188 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 
 forceCloseLayers();
+
+function isMostlyEnglish(s){
+  if(!s) return false;
+  const letters = s.match(new RegExp("[A-Za-z]", "g")) || [];
+  const fa = s.match(new RegExp("[\u0600-\u06FF]", "g")) || [];
+  return letters.length >= 2 && letters.length >= fa.length;
+}
+function dirAttr(s){ return isMostlyEnglish(s)?'ltr':'rtl'; }
+
+function toggleExamTypeMenu(){
+  document.getElementById('examTypeMenu').classList.toggle('open');
+}
+function selectExamType(val){
+  document.getElementById('editExamTypeVal').value=val;
+  const labels={practice:'فقط آزمایشی',exam:'فقط آزمون',both:'هم آزمایشی هم آزمون'};
+  document.getElementById('examTypeBtn').textContent=(labels[val]||val)+' ▾';
+  document.getElementById('examTypeMenu').classList.remove('open');
+  document.querySelectorAll('#examTypeMenu button').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-val')===val);
+  });
+}
+
+function canBanks(){
+  if(isManager) return {view:true,edit:true};
+  const p=currentAdmin&&currentAdmin.perms||{};
+  return {view:!!(p.viewBanks||p.editBanks), edit:!!p.editBanks};
+}
+function openQuestionBanks(){
+  const c=canBanks();
+  if(!c.view) return;
+  showPage('banksPage');
+  const wrap=document.getElementById('banksAddWrap');
+  if(wrap) wrap.style.display=c.edit?'':'none';
+  const list=document.getElementById('banksList');
+  const banks=getBanks();
+  if(!banks.length){ list.innerHTML='<div class="empty">بانکی نیست</div>'; return; }
+  list.innerHTML=banks.map(function(b){
+    const n=(b.questions||[]).length;
+    return `<div class="admin-row" data-bank="${escapeHtml(b.id)}">
+      <span class="an">${escapeHtml(b.name)}</span>
+      <span class="u-meta">${n} سوال · ${b.enabled!==false?'فعال':'غیرفعال'}</span>
+      ${c.edit?`<label class="switch"><input type="checkbox" ${b.enabled!==false?'checked':''} onchange="toggleBankEnabled('${b.id}',this.checked)"><span class="slider"></span></label>
+      <button class="btn btn-secondary btn-sm" onclick="openEditBank('${b.id}')">ویرایش</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteBank('${b.id}')">حذف</button>`:
+      `<button class="btn btn-secondary btn-sm" onclick="openEditBank('${b.id}')">مشاهده</button>`}
+    </div>`;
+  }).join('');
+}
+function createQuestionBank(){
+  if(!canBanks().edit) return;
+  const name=prompt('نام بانک سوال:');
+  if(!name||!name.trim()) return;
+  const banks=getBanks();
+  const id='b_'+Date.now();
+  banks.push({ id:id, name:name.trim(), enabled:true, questions:[] });
+  setBanks(banks);
+  openEditBank(id);
+}
+function toggleBankEnabled(id, on){
+  const banks=getBanks();
+  const b=banks.find(x=>x.id===id);
+  if(b){ b.enabled=!!on; setBanks(banks); openQuestionBanks(); }
+}
+async function deleteBank(id){
+  if(!canBanks().edit) return;
+  const ok=await confirmModal('حذف بانک','این بانک سوال حذف شود؟','حذف');
+  if(!ok) return;
+  setBanks(getBanks().filter(b=>b.id!==id));
+  toast('حذف شد','ok');
+  openQuestionBanks();
+}
+let editingBankId=null;
+function openEditBank(id){
+  const c=canBanks();
+  if(!c.view) return;
+  editingBankId=id;
+  const b=getBanks().find(x=>x.id===id);
+  if(!b) return;
+  document.getElementById('editBankTitle').textContent=b.name;
+  document.getElementById('editBankName').value=b.name;
+  document.getElementById('editBankEnabled').checked=b.enabled!==false;
+  document.getElementById('editBankName').disabled=!c.edit;
+  document.getElementById('editBankEnabled').disabled=!c.edit;
+  renderBankQuestionEditors(b.questions||[], c.edit);
+  showPage('editBankPage');
+}
+function renderBankQuestionEditors(qs, editable){
+  const box=document.getElementById('editBankQuestions');
+  const can=editable!==false && canBanks().edit;
+  box.innerHTML=(qs||[]).map(function(q,i){
+    const opts=q.options||['','',''];
+    while(opts.length<3) opts.push('');
+    const optHtml=opts.map(function(o,j){
+      return `<div class="radio-opt">
+        <input type="radio" name="bq_${i}" value="${j}" ${q.correct===j?'checked':''} ${can?'':'disabled'}>
+        <input type="text" data-bopt="${i}_${j}" value="${escapeHtml(o)}" dir="${dirAttr(o)}" ${can?'':'readonly'}>
+      </div>`;
+    }).join('');
+    return `<div class="q-edit" data-bi="${i}">
+      ${can?`<button type="button" class="btn btn-danger btn-sm rm" onclick="removeBankQ(${i})">حذف</button>`:''}
+      <div class="input-group"><label>سوال ${i+1}</label>
+        <textarea data-btxt="${i}" dir="${dirAttr(q.text||'')}" ${can?'':'readonly'}>${escapeHtml(q.text||'')}</textarea>
+      </div>
+      ${optHtml}
+    </div>`;
+  }).join('') || '<div class="empty">سوالی نیست</div>';
+}
+function collectBankQuestions(){
+  const box=document.getElementById('editBankQuestions');
+  return [...box.querySelectorAll('.q-edit')].map(function(block){
+    const text=(block.querySelector('textarea')||{}).value||'';
+    const opts=[...block.querySelectorAll('input[data-bopt]')].map(i=>i.value.trim()).filter(Boolean);
+    const radio=block.querySelector('input[type=radio]:checked');
+    let correct=radio?parseInt(radio.value,10):0;
+    if(correct>=opts.length) correct=0;
+    return { text:text.trim(), options:opts, correct:correct, enabled:true };
+  }).filter(q=>q.text && q.options.length>=2);
+}
+function addBankQuestion(){
+  if(!canBanks().edit) return;
+  const qs=collectBankQuestions();
+  qs.push({ text:'', options:['','',''], correct:0 });
+  renderBankQuestionEditors(qs, true);
+}
+function removeBankQ(i){
+  const qs=collectBankQuestions();
+  qs.splice(i,1);
+  renderBankQuestionEditors(qs, true);
+}
+function saveBankEdit(){
+  if(!canBanks().edit) return;
+  const banks=getBanks();
+  const b=banks.find(x=>x.id===editingBankId);
+  if(!b) return;
+  b.name=document.getElementById('editBankName').value.trim()||b.name;
+  b.enabled=document.getElementById('editBankEnabled').checked;
+  b.questions=collectBankQuestions();
+  setBanks(banks);
+  toast('ذخیره شد','ok');
+  openQuestionBanks();
+}
+
+function openPickFromBank(){
+  showPage('pickBankPage');
+  const list=document.getElementById('pickBankList');
+  const banks=getBanks().filter(b=>b.enabled!==false);
+  list.innerHTML=banks.map(function(b){
+    const n=(b.questions||[]).length;
+    return `<div class="bank-pick">
+      <div class="row-between"><strong>${escapeHtml(b.name)}</strong><span class="u-meta">${n} سوال</span></div>
+      <div class="input-group" style="margin:8px 0 0"><label>تعداد سوال از این بانک</label>
+        <input type="number" min="0" max="${n}" value="0" data-pick-bank="${b.id}">
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty">بانک فعالی نیست</div>';
+}
+function applyPickedFromBanks(){
+  const inputs=[...document.querySelectorAll('[data-pick-bank]')];
+  const banks=getBanks();
+  let added=[];
+  inputs.forEach(function(inp){
+    const id=inp.getAttribute('data-pick-bank');
+    let cnt=parseInt(inp.value||'0',10);
+    if(cnt<=0) return;
+    const b=banks.find(x=>x.id===id);
+    if(!b) return;
+    const qs=(b.questions||[]).filter(q=>q && q.enabled!==false);
+    // shuffle pick
+    const sh=qs.slice().sort(function(){return Math.random()-0.5;});
+    added=added.concat(sh.slice(0, Math.min(cnt, sh.length)));
+  });
+  if(!added.length){ toast('تعداد را مشخص کنید','err'); return; }
+  const current=collectQuestionsFromEditors();
+  const merged=current.concat(added.map(function(q){
+    return { text:q.text, options:(q.options||[]).slice(), correct:q.correct|0, enabled:true };
+  }));
+  renderQuestionEditors(merged);
+  showPage('editExamPage');
+  toast(added.length+' سوال اضافه شد','ok');
+}
+
+
 initTheme();
 showPage('homePage');
 }
@@ -1094,6 +1433,7 @@ function renderAdminPanel(){
   if(p.managePractice||p.manageExam||p.exams) html+='<button class="btn btn-secondary" onclick="openManageExams()">مدیریت آزمون</button>';
   if(p.stats) html+='<button class="btn btn-primary" onclick="openStats()">آمار</button>';
   if(p.addAdmin) html+='<button class="btn btn-secondary" onclick="openAddAdmin()">افزودن ادمین</button>';
+  if(p.viewBanks||p.editBanks) html+='<button class="btn btn-secondary" onclick="openQuestionBanks()">بانک سوال</button>';
   if(!html) html='<div class="empty">هیچ اختیاری برای شما فعال نیست</div>';
   box.innerHTML=html;
 }
@@ -1124,6 +1464,17 @@ async function openUsers(){
       </div>`;
     }).join('');
   }catch(e){ list.innerHTML='<div class="empty">خطا</div>'; }
+}
+async function deleteAdmin(name){
+  if(!isManager) return;
+  if(name==='__manager__') return;
+  const ok=await confirmModal('حذف ادمین','آیا ادمین «'+name+'» حذف شود؟','حذف');
+  if(!ok) return;
+  try{
+    await sbDelete('exam_admins','name=eq.'+encodeURIComponent(name));
+    toast('حذف شد','ok');
+    openManageAdmins();
+  }catch(e){ toast('خطا','err'); }
 }
 async function deleteUser(username){
   if(!isManager) return;
@@ -1192,13 +1543,12 @@ async function openManageAdmins(){
     const rows=(await sbGet('exam_admins','select=*&order=name.asc')||[]).filter(a=>a.name!=='__manager__');
     if(!rows.length){ list.innerHTML='<div class="empty">ادمینی نیست</div>'; return; }
     list.innerHTML=rows.map(a=>`
-      <div class="card">
-        <div class="row-between">
-          <h4 dir="ltr">${escapeHtml(a.name)}</h4>
-          <button class="btn btn-secondary btn-sm" onclick="openAdminPerms('${escapeHtml(a.name)}')">تنظیمات</button>
-        </div>
-        <div class="meta">رمز: <span dir="ltr">${escapeHtml(a.password)}</span></div>
-        <div class="meta">آخرین ورود: ${fmtTime(a.last_login)}</div>
+      <div class="admin-row">
+        <span class="an" dir="ltr">${escapeHtml(a.name)}</span>
+        <span class="u-meta">رمز: <b dir="ltr">${escapeHtml(a.password)}</b></span>
+        <span class="u-meta">${fmtTime(a.last_login)}</span>
+        <button class="btn btn-secondary btn-sm" onclick="openAdminPerms('${escapeHtml(a.name)}')">تنظیمات</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteAdmin('${escapeHtml(a.name)}')">حذف</button>
       </div>
     `).join('');
   }catch(e){ list.innerHTML='<div class="empty">خطا</div>'; }
@@ -1206,10 +1556,10 @@ async function openManageAdmins(){
 
 function granterPerms(){
   if(isManager){
-    return { usersLastLogin:1, usersPassword:1, addAdmin:1, managePractice:1, manageExam:1, stats:1 };
+    return { usersLastLogin:1, usersPassword:1, addAdmin:1, managePractice:1, manageExam:1, stats:1, viewBanks:1, editBanks:1 };
   }
   return Object.assign({
-    usersLastLogin:0, usersPassword:0, addAdmin:0, managePractice:0, manageExam:0, stats:0
+    usersLastLogin:0, usersPassword:0, addAdmin:0, managePractice:0, manageExam:0, stats:0, viewBanks:0, editBanks:0
   }, (currentAdmin&&currentAdmin.perms)||{});
 }
 async function openAdminPerms(name){
@@ -1233,6 +1583,8 @@ async function openAdminPerms(name){
     document.getElementById('permManagePractice').checked=!!(p.managePractice||p.exams);
     document.getElementById('permManageExam').checked=!!(p.manageExam||p.exams);
     document.getElementById('permStats').checked=!!p.stats;
+    const vb=document.getElementById('permViewBanks'); if(vb) vb.checked=!!(p.viewBanks);
+    const eb=document.getElementById('permEditBanks'); if(eb) eb.checked=!!(p.editBanks);
   }catch(e){}
   showPage('adminPermsPage');
 }
@@ -1244,7 +1596,9 @@ async function saveAdminPerms(){
     addAdmin: !!(g.addAdmin && document.getElementById('permAddAdmin').checked),
     managePractice: !!(g.managePractice && document.getElementById('permManagePractice').checked),
     manageExam: !!(g.manageExam && document.getElementById('permManageExam').checked),
-    stats: !!(g.stats && document.getElementById('permStats').checked)
+    stats: !!(g.stats && document.getElementById('permStats').checked),
+    viewBanks: !!(g.viewBanks && document.getElementById('permViewBanks') && document.getElementById('permViewBanks').checked),
+    editBanks: !!(g.editBanks && document.getElementById('permEditBanks') && document.getElementById('permEditBanks').checked)
   };
   try{
     await sbUpdate('exam_admins','name=eq.'+encodeURIComponent(permAdminName),{ perms: perms });
@@ -1254,7 +1608,17 @@ async function saveAdminPerms(){
 }
 
 /* ===== Exams CRUD ===== */
+function ensureBanksSeed(){
+  try{
+    const d=loadLocalApp();
+    if(!d.banks || !d.banks.length){
+      d.banks=JSON.parse(JSON.stringify(DEFAULT_BANKS));
+      saveLocalApp(d);
+    }
+  }catch(e){}
+}
 async function ensureSeedExams(){
+  ensureBanksSeed();
   try{
     const rows=await sbGet('exams','select=id');
     if(rows && rows.length) return;
@@ -1406,7 +1770,11 @@ async function openEditExam(id){
     document.getElementById('editExamPass').value = (ex.pass_percent!=null?ex.pass_percent:50);
     document.getElementById('editExamEnabled').checked=!!ex.enabled;
     const typ=ex.type||'both';
-    document.querySelectorAll('input[name="editExamType"]').forEach(function(r){ r.checked=(r.value===typ); });
+    if(typeof selectExamType==='function') selectExamType(typ);
+    else {
+      const hv=document.getElementById('editExamTypeVal');
+      if(hv) hv.value=typ;
+    }
     const qs=Array.isArray(ex.questions)?ex.questions:(typeof ex.questions==='string'?JSON.parse(ex.questions):[]);
     renderQuestionEditors(qs);
   }catch(e){ toast('خطا','err'); }
@@ -1511,8 +1879,7 @@ async function saveExamEdit(){
   const name=document.getElementById('editExamName').value.trim();
   const time=parseInt(document.getElementById('editExamTime').value||'0',10);
   const passPct=Math.min(100,Math.max(0,parseInt(document.getElementById('editExamPass').value||'50',10)));
-  const typeEl=document.querySelector('input[name="editExamType"]:checked');
-  const type=typeEl?typeEl.value:'both';
+  const type=(document.getElementById('editExamTypeVal')||{}).value||'both';
   const enabled=document.getElementById('editExamEnabled').checked;
   const raw=collectQuestionsFromEditors();
   const questions=raw.filter(function(q){ return q.text && q.options.filter(Boolean).length>=2; });
@@ -1733,11 +2100,13 @@ function renderTakeExam(){
         cls+=' selected';
       }
       const dis = mode==='practice' && answered ? 'disabled' : '';
-      return `<button type="button" class="${cls}" ${dis} onclick="answerQuestion(${qi},${oi})">${escapeHtml(o)}</button>`;
+      const od=dirAttr(o);
+      return `<button type="button" class="${cls}" ${dis} dir="${od}" style="text-align:${od==='ltr'?'left':'right'}" onclick="answerQuestion(${qi},${oi})">${escapeHtml(o)}</button>`;
     }).join('');
+    const qd=dirAttr(q.text);
     return `<div class="q-card" id="qcard_${qi}">
       <div class="q-num">سوال ${qi+1} از ${qs.length}</div>
-      <div class="q-text" dir="auto">${escapeHtml(q.text)}</div>
+      <div class="q-text" dir="${qd}" style="text-align:${qd==='ltr'?'left':'right'}">${escapeHtml(q.text)}</div>
       ${optHtml}
     </div>`;
   }).join('');
@@ -1834,11 +2203,13 @@ function renderReviewPage(qs, ans, showAnswers){
     if(!showAnswers){
       // فقط سوال و گزینه‌ها بدون مشخص کردن درست/غلط
       const opts=(q.options||[]).map(function(o){
-        return `<div class="opt" style="cursor:default">${escapeHtml(o)}</div>`;
+        const od=dirAttr(o);
+        return `<div class="opt" style="cursor:default;text-align:${od==='ltr'?'left':'right'}" dir="${od}">${escapeHtml(o)}</div>`;
       }).join('');
+      const qd=dirAttr(q.text);
       return `<div class="q-card">
         <div class="q-num">سوال ${qi+1}</div>
-        <div class="q-text" dir="auto">${escapeHtml(q.text)}</div>
+        <div class="q-text" dir="${qd}" style="text-align:${qd==='ltr'?'left':'right'}">${escapeHtml(q.text)}</div>
         ${opts}
       </div>`;
     }
@@ -1849,16 +2220,18 @@ function renderReviewPage(qs, ans, showAnswers){
       let tag='';
       if(oi===q.correct) tag=' ✓ پاسخ صحیح';
       else if(!unanswered && oi===userAns) tag=' ✗ پاسخ شما';
-      return `<div class="${cls}" style="cursor:default">${escapeHtml(o)}${tag?'<span style="font-size:12px;opacity:.85"> '+tag+'</span>':''}</div>`;
+      const od=dirAttr(o);
+      return `<div class="${cls}" dir="${od}" style="cursor:default;text-align:${od==='ltr'?'left':'right'}">${escapeHtml(o)}${tag?'<span style="font-size:12px;opacity:.85"> '+tag+'</span>':''}</div>`;
     }).join('');
     const status = unanswered
       ? '<div class="meta" style="color:var(--warn);margin-bottom:8px">پاسخ داده نشده</div>'
       : (userAns===q.correct
           ? '<div class="meta" style="color:var(--ok);margin-bottom:8px">پاسخ درست</div>'
           : '<div class="meta" style="color:var(--err);margin-bottom:8px">پاسخ نادرست</div>');
+    const qd=dirAttr(q.text);
     return `<div class="q-card ${unanswered?'review-unanswered':''}">
       <div class="q-num">سوال ${qi+1}</div>
-      <div class="q-text" dir="auto">${escapeHtml(q.text)}</div>
+      <div class="q-text" dir="${qd}" style="text-align:${qd==='ltr'?'left':'right'}">${escapeHtml(q.text)}</div>
       ${status}
       ${opts}
     </div>`;
@@ -1889,9 +2262,14 @@ async function openUserStats(username){
   const body=document.getElementById('statsDetailBody');
   body.innerHTML='<div class="loading">...</div>';
   try{
-    const rows=await sbGet('exam_results','select=*&username=eq.'+encodeURIComponent(username)+'&order=finished_at.asc');
-    if(!rows||!rows.length){ body.innerHTML='<div class="empty">هنوز در آزمونی شرکت نکرده</div>'; return; }
-    // گروه‌بندی بر اساس exam_id
+    let rows=await sbGet('exam_results','select=*&username=eq.'+encodeURIComponent(username)+'&order=finished_at.asc');
+    let liveIds={};
+    try{
+      const exams=await sbGet('exams','select=id');
+      (exams||[]).forEach(function(e){ liveIds[String(e.id)]=1; });
+    }catch(e){}
+    rows=(rows||[]).filter(function(r){ return liveIds[String(r.exam_id)]; });
+    if(!rows.length){ body.innerHTML='<div class="empty">هنوز در آزمونی شرکت نکرده (یا آزمون‌ها حذف شده‌اند)</div>'; return; }
     const byExam={};
     rows.forEach(function(r){
       const k=String(r.exam_id);
@@ -1995,8 +2373,11 @@ async function openMyStats(){
   const body=document.getElementById('myStatsBody');
   body.innerHTML='<div class="loading">...</div>';
   try{
-    const rows=await sbGet('exam_results','select=*&username=eq.'+encodeURIComponent(currentUser.username)+'&order=finished_at.desc');
-    if(!rows||!rows.length){ body.innerHTML='<div class="empty">هنوز آزمونی نداده‌اید</div>'; return; }
+    let rows=await sbGet('exam_results','select=*&username=eq.'+encodeURIComponent(currentUser.username)+'&order=finished_at.desc');
+    let liveIds={};
+    try{ const exams=await sbGet('exams','select=id'); (exams||[]).forEach(function(e){ liveIds[String(e.id)]=1; }); }catch(e){}
+    rows=(rows||[]).filter(function(r){ return liveIds[String(r.exam_id)]; });
+    if(!rows.length){ body.innerHTML='<div class="empty">هنوز آزمونی نداده‌اید</div>'; return; }
     let c=0,w=0,u=0;
     rows.forEach(r=>{ c+=r.correct|0; w+=r.wrong|0; u+=r.unanswered|0; });
     let html=`<div class="card" style="margin-bottom:12px">
@@ -2042,6 +2423,188 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 
 forceCloseLayers();
+
+function isMostlyEnglish(s){
+  if(!s) return false;
+  const letters = s.match(new RegExp("[A-Za-z]", "g")) || [];
+  const fa = s.match(new RegExp("[\u0600-\u06FF]", "g")) || [];
+  return letters.length >= 2 && letters.length >= fa.length;
+}
+function dirAttr(s){ return isMostlyEnglish(s)?'ltr':'rtl'; }
+
+function toggleExamTypeMenu(){
+  document.getElementById('examTypeMenu').classList.toggle('open');
+}
+function selectExamType(val){
+  document.getElementById('editExamTypeVal').value=val;
+  const labels={practice:'فقط آزمایشی',exam:'فقط آزمون',both:'هم آزمایشی هم آزمون'};
+  document.getElementById('examTypeBtn').textContent=(labels[val]||val)+' ▾';
+  document.getElementById('examTypeMenu').classList.remove('open');
+  document.querySelectorAll('#examTypeMenu button').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-val')===val);
+  });
+}
+
+function canBanks(){
+  if(isManager) return {view:true,edit:true};
+  const p=currentAdmin&&currentAdmin.perms||{};
+  return {view:!!(p.viewBanks||p.editBanks), edit:!!p.editBanks};
+}
+function openQuestionBanks(){
+  const c=canBanks();
+  if(!c.view) return;
+  showPage('banksPage');
+  const wrap=document.getElementById('banksAddWrap');
+  if(wrap) wrap.style.display=c.edit?'':'none';
+  const list=document.getElementById('banksList');
+  const banks=getBanks();
+  if(!banks.length){ list.innerHTML='<div class="empty">بانکی نیست</div>'; return; }
+  list.innerHTML=banks.map(function(b){
+    const n=(b.questions||[]).length;
+    return `<div class="admin-row" data-bank="${escapeHtml(b.id)}">
+      <span class="an">${escapeHtml(b.name)}</span>
+      <span class="u-meta">${n} سوال · ${b.enabled!==false?'فعال':'غیرفعال'}</span>
+      ${c.edit?`<label class="switch"><input type="checkbox" ${b.enabled!==false?'checked':''} onchange="toggleBankEnabled('${b.id}',this.checked)"><span class="slider"></span></label>
+      <button class="btn btn-secondary btn-sm" onclick="openEditBank('${b.id}')">ویرایش</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteBank('${b.id}')">حذف</button>`:
+      `<button class="btn btn-secondary btn-sm" onclick="openEditBank('${b.id}')">مشاهده</button>`}
+    </div>`;
+  }).join('');
+}
+function createQuestionBank(){
+  if(!canBanks().edit) return;
+  const name=prompt('نام بانک سوال:');
+  if(!name||!name.trim()) return;
+  const banks=getBanks();
+  const id='b_'+Date.now();
+  banks.push({ id:id, name:name.trim(), enabled:true, questions:[] });
+  setBanks(banks);
+  openEditBank(id);
+}
+function toggleBankEnabled(id, on){
+  const banks=getBanks();
+  const b=banks.find(x=>x.id===id);
+  if(b){ b.enabled=!!on; setBanks(banks); openQuestionBanks(); }
+}
+async function deleteBank(id){
+  if(!canBanks().edit) return;
+  const ok=await confirmModal('حذف بانک','این بانک سوال حذف شود؟','حذف');
+  if(!ok) return;
+  setBanks(getBanks().filter(b=>b.id!==id));
+  toast('حذف شد','ok');
+  openQuestionBanks();
+}
+let editingBankId=null;
+function openEditBank(id){
+  const c=canBanks();
+  if(!c.view) return;
+  editingBankId=id;
+  const b=getBanks().find(x=>x.id===id);
+  if(!b) return;
+  document.getElementById('editBankTitle').textContent=b.name;
+  document.getElementById('editBankName').value=b.name;
+  document.getElementById('editBankEnabled').checked=b.enabled!==false;
+  document.getElementById('editBankName').disabled=!c.edit;
+  document.getElementById('editBankEnabled').disabled=!c.edit;
+  renderBankQuestionEditors(b.questions||[], c.edit);
+  showPage('editBankPage');
+}
+function renderBankQuestionEditors(qs, editable){
+  const box=document.getElementById('editBankQuestions');
+  const can=editable!==false && canBanks().edit;
+  box.innerHTML=(qs||[]).map(function(q,i){
+    const opts=q.options||['','',''];
+    while(opts.length<3) opts.push('');
+    const optHtml=opts.map(function(o,j){
+      return `<div class="radio-opt">
+        <input type="radio" name="bq_${i}" value="${j}" ${q.correct===j?'checked':''} ${can?'':'disabled'}>
+        <input type="text" data-bopt="${i}_${j}" value="${escapeHtml(o)}" dir="${dirAttr(o)}" ${can?'':'readonly'}>
+      </div>`;
+    }).join('');
+    return `<div class="q-edit" data-bi="${i}">
+      ${can?`<button type="button" class="btn btn-danger btn-sm rm" onclick="removeBankQ(${i})">حذف</button>`:''}
+      <div class="input-group"><label>سوال ${i+1}</label>
+        <textarea data-btxt="${i}" dir="${dirAttr(q.text||'')}" ${can?'':'readonly'}>${escapeHtml(q.text||'')}</textarea>
+      </div>
+      ${optHtml}
+    </div>`;
+  }).join('') || '<div class="empty">سوالی نیست</div>';
+}
+function collectBankQuestions(){
+  const box=document.getElementById('editBankQuestions');
+  return [...box.querySelectorAll('.q-edit')].map(function(block){
+    const text=(block.querySelector('textarea')||{}).value||'';
+    const opts=[...block.querySelectorAll('input[data-bopt]')].map(i=>i.value.trim()).filter(Boolean);
+    const radio=block.querySelector('input[type=radio]:checked');
+    let correct=radio?parseInt(radio.value,10):0;
+    if(correct>=opts.length) correct=0;
+    return { text:text.trim(), options:opts, correct:correct, enabled:true };
+  }).filter(q=>q.text && q.options.length>=2);
+}
+function addBankQuestion(){
+  if(!canBanks().edit) return;
+  const qs=collectBankQuestions();
+  qs.push({ text:'', options:['','',''], correct:0 });
+  renderBankQuestionEditors(qs, true);
+}
+function removeBankQ(i){
+  const qs=collectBankQuestions();
+  qs.splice(i,1);
+  renderBankQuestionEditors(qs, true);
+}
+function saveBankEdit(){
+  if(!canBanks().edit) return;
+  const banks=getBanks();
+  const b=banks.find(x=>x.id===editingBankId);
+  if(!b) return;
+  b.name=document.getElementById('editBankName').value.trim()||b.name;
+  b.enabled=document.getElementById('editBankEnabled').checked;
+  b.questions=collectBankQuestions();
+  setBanks(banks);
+  toast('ذخیره شد','ok');
+  openQuestionBanks();
+}
+
+function openPickFromBank(){
+  showPage('pickBankPage');
+  const list=document.getElementById('pickBankList');
+  const banks=getBanks().filter(b=>b.enabled!==false);
+  list.innerHTML=banks.map(function(b){
+    const n=(b.questions||[]).length;
+    return `<div class="bank-pick">
+      <div class="row-between"><strong>${escapeHtml(b.name)}</strong><span class="u-meta">${n} سوال</span></div>
+      <div class="input-group" style="margin:8px 0 0"><label>تعداد سوال از این بانک</label>
+        <input type="number" min="0" max="${n}" value="0" data-pick-bank="${b.id}">
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty">بانک فعالی نیست</div>';
+}
+function applyPickedFromBanks(){
+  const inputs=[...document.querySelectorAll('[data-pick-bank]')];
+  const banks=getBanks();
+  let added=[];
+  inputs.forEach(function(inp){
+    const id=inp.getAttribute('data-pick-bank');
+    let cnt=parseInt(inp.value||'0',10);
+    if(cnt<=0) return;
+    const b=banks.find(x=>x.id===id);
+    if(!b) return;
+    const qs=(b.questions||[]).filter(q=>q && q.enabled!==false);
+    // shuffle pick
+    const sh=qs.slice().sort(function(){return Math.random()-0.5;});
+    added=added.concat(sh.slice(0, Math.min(cnt, sh.length)));
+  });
+  if(!added.length){ toast('تعداد را مشخص کنید','err'); return; }
+  const current=collectQuestionsFromEditors();
+  const merged=current.concat(added.map(function(q){
+    return { text:q.text, options:(q.options||[]).slice(), correct:q.correct|0, enabled:true };
+  }));
+  renderQuestionEditors(merged);
+  showPage('editExamPage');
+  toast(added.length+' سوال اضافه شد','ok');
+}
+
+
 initTheme();
 showPage('homePage');
 </script>
