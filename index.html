@@ -51,10 +51,7 @@ body.dark .opt.wrong{color:#fecaca!important}
 #homePage.page.active,#userMainPage.page.active,#managerPage.page.active,#adminPage.page.active{
   justify-content:center;min-height:100vh;min-height:100dvh
 }
-#userMainPage .topbar-mini,#managerPage .topbar-mini,#adminPage .topbar-mini{
-  position:absolute;top:max(14px,env(safe-area-inset-top));left:0;right:0;margin:0 auto
-}
-#userMainPage,#managerPage,#adminPage{position:relative;padding-top:72px}
+#userMainPage,#managerPage,#adminPage{position:relative}
 #userMainPage .grid-btns,#managerPage .grid-btns,#adminPage .grid-btns{margin-top:12px}
 
 .btn{padding:13px 22px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;width:100%}
@@ -262,6 +259,32 @@ body.dark .radio-opt input[type=text]{background:#12141c}
   from{opacity:0;transform:scale(.92) translateY(12px)}
   to{opacity:1;transform:scale(1) translateY(0)}
 }
+
+/* --- mobile tap fixes --- */
+.btn, button, .opt, .hamburger, .night-btn, .switch, a, label{
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(91,76,219,.15);
+  cursor: pointer;
+}
+.btn{position:relative;z-index:2;min-height:48px}
+.menu-overlay, .rename-backdrop, .modal-bg{
+  pointer-events: none !important;
+}
+.menu-overlay.show, .rename-backdrop.show, .modal-bg.show{
+  pointer-events: auto !important;
+}
+.admin-menu{pointer-events:none}
+.admin-menu.show{pointer-events:auto}
+.hamburger.hidden, .night-btn.hidden{display:none!important;pointer-events:none!important}
+/* جلوگیری از پوشش تمام‌صفحه ناخواسته */
+.menu-overlay:not(.show),
+.rename-backdrop:not(.show),
+.modal-bg:not(.show){
+  display:none!important;
+  opacity:0!important;
+  visibility:hidden!important;
+}
+
 </style>
 </head>
 <body>
@@ -794,8 +817,12 @@ function toggleMenu(){
   document.getElementById('menuOverlay').classList.toggle('show');
 }
 function closeMenu(){
-  document.getElementById('mainMenu').classList.remove('show');
-  document.getElementById('menuOverlay').classList.remove('show');
+  try{
+    var m=document.getElementById('mainMenu');
+    var o=document.getElementById('menuOverlay');
+    if(m) m.classList.remove('show');
+    if(o) o.classList.remove('show');
+  }catch(e){}
 }
 function toast(msg, type){
   const t=document.getElementById('toast');
@@ -1030,6 +1057,31 @@ async function openMyStats(){
   }catch(e){ body.innerHTML='<div class="empty">خطا</div>'; }
 }
 
+
+function forceCloseLayers(){
+  try{
+    document.querySelectorAll('.menu-overlay,.rename-backdrop,.modal-bg,.admin-menu').forEach(function(el){
+      el.classList.remove('show');
+    });
+  }catch(e){}
+}
+document.addEventListener('DOMContentLoaded', function(){
+  forceCloseLayers();
+  // اتصال امن دکمه‌های صفحه اول برای موبایل
+  try{
+    var home = document.getElementById('homePage');
+    if(home){
+      home.addEventListener('click', function(e){
+        var t = e.target.closest('button');
+        if(!t || !home.contains(t)) return;
+        var oc = t.getAttribute('onclick');
+        // onclick عادی هم اجرا می‌شود؛ این فقط اطمینان از عدم بلاک است
+      }, true);
+    }
+  }catch(e){}
+});
+
+forceCloseLayers();
 initTheme();
 showPage('homePage');
 }
@@ -1965,6 +2017,31 @@ async function openMyStats(){
   }catch(e){ body.innerHTML='<div class="empty">خطا</div>'; }
 }
 
+
+function forceCloseLayers(){
+  try{
+    document.querySelectorAll('.menu-overlay,.rename-backdrop,.modal-bg,.admin-menu').forEach(function(el){
+      el.classList.remove('show');
+    });
+  }catch(e){}
+}
+document.addEventListener('DOMContentLoaded', function(){
+  forceCloseLayers();
+  // اتصال امن دکمه‌های صفحه اول برای موبایل
+  try{
+    var home = document.getElementById('homePage');
+    if(home){
+      home.addEventListener('click', function(e){
+        var t = e.target.closest('button');
+        if(!t || !home.contains(t)) return;
+        var oc = t.getAttribute('onclick');
+        // onclick عادی هم اجرا می‌شود؛ این فقط اطمینان از عدم بلاک است
+      }, true);
+    }
+  }catch(e){}
+});
+
+forceCloseLayers();
 initTheme();
 showPage('homePage');
 </script>
