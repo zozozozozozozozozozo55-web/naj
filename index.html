@@ -208,6 +208,32 @@ body.dark .radio-opt input[type=text]{background:#12141c}
 .rename-backdrop.show .rename-box{transform:translateY(0) scale(1);opacity:1}
 .rename-box h3{margin:0 0 6px;color:var(--primary2);font-size:17px;text-align:center}
 .rename-box p{font-size:12px;color:var(--muted);text-align:center;margin-bottom:14px}
+
+.btn-logout-main{
+  width:100%;max-width:300px;margin:0 auto 18px;display:block;
+  padding:14px 22px;font-size:16px;font-weight:700
+}
+.back-corner{
+  position:fixed;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));
+  z-index:150;width:auto;min-width:72px;padding:8px 14px;font-size:13px
+}
+.exam-card-passed{opacity:.55}
+.exam-card-fail{border-color:rgba(220,38,38,.45)!important}
+.pct-ok{color:var(--ok);font-weight:700}
+.pct-fail{color:var(--err);font-weight:700}
+.type-pick{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.type-pick label{
+  display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;
+  border:1px solid var(--border);background:var(--card);cursor:pointer;
+  transition:border-color .2s,background .2s,transform .2s
+}
+.type-pick label:has(input:checked){
+  border-color:var(--primary);background:rgba(91,76,219,.08);
+  transform:scale(1.02);box-shadow:0 0 0 3px rgba(91,76,219,.12)
+}
+.type-pick input{accent-color:var(--primary);width:18px;height:18px}
+.score-formula{font-size:11px;color:var(--muted);margin-top:4px}
+
 </style>
 </head>
 <body>
@@ -289,26 +315,22 @@ body.dark .radio-opt input[type=text]{background:#12141c}
 </div>
 
 <!-- USER MAIN -->
-<div class="page top" id="userMainPage">
-  <div class="topbar-mini">
-    <div>
-      <div style="font-size:13px;color:var(--muted)">خوش آمدید</div>
-      <div id="userWelcome" style="font-weight:700">—</div>
+<div class="page" id="userMainPage">
+  <div style="width:100%;max-width:320px;margin:auto;text-align:center">
+    <div style="font-size:13px;color:var(--muted);margin-bottom:4px">خوش آمدید</div>
+    <div id="userWelcome" style="font-weight:700;margin-bottom:20px;font-size:18px">—</div>
+    <button class="btn btn-secondary btn-logout-main" onclick="logout()">خروج</button>
+    <div class="grid-btns" style="margin:0 auto">
+      <button class="btn btn-primary" onclick="openExamList('practice')">آزمون آزمایشی</button>
+      <button class="btn btn-secondary" onclick="openExamList('exam')">آزمون</button>
     </div>
-    <button class="btn btn-secondary btn-sm" onclick="logout()">خروج</button>
-  </div>
-  <div class="grid-btns" style="margin:0 auto">
-    <button class="btn btn-primary" onclick="openExamList('practice')">آزمون آزمایشی</button>
-    <button class="btn btn-secondary" onclick="openExamList('exam')">آزمون</button>
   </div>
 </div>
 
 <!-- EXAM LIST -->
 <div class="page top" id="examListPage">
-  <div class="topbar-mini">
-    <h2 id="examListTitle" style="color:var(--primary2);font-size:17px;margin:0">آزمون‌ها</h2>
-    <button class="btn btn-secondary btn-sm" onclick="showPage('userMainPage')">برگشت</button>
-  </div>
+  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="showPage('userMainPage')">برگشت</button>
+  <h2 id="examListTitle" style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center">آزمون‌ها</h2>
   <div class="list" id="examList" style="max-width:560px;margin:0 auto"></div>
 </div>
 
@@ -334,8 +356,11 @@ body.dark .radio-opt input[type=text]{background:#12141c}
     <button class="btn btn-secondary btn-sm" onclick="showPage('resultPage')">نتیجه</button>
   </div>
   <div id="reviewBody" style="max-width:560px;margin:0 auto;width:100%;padding-bottom:40px"></div>
-  <div style="max-width:560px;margin:12px auto;width:100%">
-    <button class="btn btn-primary" onclick="showPage('resultPage')">مشاهده خلاصه نتیجه</button>
+  <div style="max-width:560px;margin:12px auto;width:100%;display:flex;flex-direction:column;gap:8px">
+    <button class="btn btn-secondary" onclick="showReview('blank')">مرور سوالات (بدون جواب)</button>
+    <button class="btn btn-primary" onclick="showReview('answers')">مشاهده پاسخ‌ها</button>
+    <button class="btn btn-secondary" onclick="showPage('resultPage')">خلاصه نتیجه</button>
+    <button class="btn btn-primary" onclick="showPage('userMainPage')">صفحه اصلی</button>
   </div>
 </div>
 
@@ -344,41 +369,38 @@ body.dark .radio-opt input[type=text]{background:#12141c}
   <div class="panel result-box">
     <h2>نتیجه آزمون</h2>
     <div id="resultContent"></div>
-    <button class="btn btn-secondary" style="margin-top:12px" onclick="showPage('reviewPage')">مرور پاسخ‌ها</button>
     <button class="btn btn-primary" style="margin-top:10px" onclick="showPage('userMainPage')">بازگشت به صفحه اصلی</button>
   </div>
 </div>
 
 <!-- MANAGER PANEL -->
-<div class="page top" id="managerPage">
-  <div class="topbar-mini">
-    <h2 style="color:var(--primary2);font-size:17px;margin:0">پنل مدیر</h2>
-    <button class="btn btn-secondary btn-sm" onclick="logout()">خروج</button>
-  </div>
-  <div class="grid-btns" style="margin:0 auto;max-width:420px">
+<div class="page" id="managerPage">
+  <div style="width:100%;max-width:420px;margin:auto;text-align:center">
+    <h2 style="color:var(--primary2);font-size:17px;margin:0 0 16px">پنل مدیر</h2>
+    <button class="btn btn-secondary btn-logout-main" onclick="logout()">خروج</button>
+    <div class="grid-btns" style="margin:0 auto;max-width:420px">
     <button class="btn btn-primary" onclick="openUsers()">کاربران</button>
     <button class="btn btn-secondary" onclick="openAddAdmin()">افزودن ادمین</button>
     <button class="btn btn-secondary" onclick="openManageAdmins()">مدیریت ادمین</button>
     <button class="btn btn-secondary" onclick="openManageExams()">مدیریت آزمون</button>
     <button class="btn btn-primary" onclick="openStats()" style="grid-column:1/-1">آمار</button>
+    </div>
   </div>
 </div>
 
 <!-- ADMIN PANEL (limited) -->
-<div class="page top" id="adminPage">
-  <div class="topbar-mini">
-    <h2 style="color:var(--primary2);font-size:17px;margin:0">پنل ادمین</h2>
-    <button class="btn btn-secondary btn-sm" onclick="logout()">خروج</button>
+<div class="page" id="adminPage">
+  <div style="width:100%;max-width:420px;margin:auto;text-align:center">
+    <h2 style="color:var(--primary2);font-size:17px;margin:0 0 16px">پنل ادمین</h2>
+    <button class="btn btn-secondary btn-logout-main" onclick="logout()">خروج</button>
+    <div class="grid-btns" id="adminBtns" style="margin:0 auto;max-width:420px"></div>
   </div>
-  <div class="grid-btns" id="adminBtns" style="margin:0 auto;max-width:420px"></div>
 </div>
 
 <!-- USERS -->
 <div class="page top" id="usersPage">
-  <div class="topbar-mini">
-    <h2 style="color:var(--primary2);font-size:17px;margin:0">کاربران</h2>
-    <button class="btn btn-secondary btn-sm" onclick="backToStaff()">برگشت</button>
-  </div>
+  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="backToStaff()">برگشت</button>
+  <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center">کاربران</h2>
   <div class="list" id="usersList" style="max-width:560px;margin:0 auto"></div>
 </div>
 
@@ -408,10 +430,8 @@ body.dark .radio-opt input[type=text]{background:#12141c}
 
 <!-- MANAGE ADMINS -->
 <div class="page top" id="manageAdminsPage">
-  <div class="topbar-mini">
-    <h2 style="color:var(--primary2);font-size:17px;margin:0">مدیریت ادمین</h2>
-    <button class="btn btn-secondary btn-sm" onclick="backToStaff()">برگشت</button>
-  </div>
+  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="backToStaff()">برگشت</button>
+  <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center">مدیریت ادمین</h2>
   <div class="list" id="adminsList" style="max-width:560px;margin:0 auto"></div>
 </div>
 
@@ -432,10 +452,8 @@ body.dark .radio-opt input[type=text]{background:#12141c}
 
 <!-- MANAGE EXAMS -->
 <div class="page top" id="manageExamsPage">
-  <div class="topbar-mini">
-    <h2 style="color:var(--primary2);font-size:17px;margin:0">مدیریت آزمون</h2>
-    <button class="btn btn-secondary btn-sm" onclick="backToStaff()">برگشت</button>
-  </div>
+  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="backToStaff()">برگشت</button>
+  <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center">مدیریت آزمون</h2>
   <div style="max-width:560px;margin:0 auto 12px;width:100%">
     <button class="btn btn-primary" onclick="createNewExam()">＋ آزمون جدید</button>
   </div>
@@ -444,19 +462,21 @@ body.dark .radio-opt input[type=text]{background:#12141c}
 
 <!-- EDIT EXAM -->
 <div class="page top" id="editExamPage">
-  <div class="topbar-mini">
-    <h2 style="color:var(--primary2);font-size:17px;margin:0">ویرایش آزمون</h2>
-    <button class="btn btn-secondary btn-sm" onclick="openManageExams()">برگشت</button>
-  </div>
+  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="openManageExams()">برگشت</button>
+  <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center">ویرایش آزمون</h2>
   <div class="panel" style="margin:0 auto">
     <div class="input-group"><label>نام آزمون</label><input type="text" id="editExamName"></div>
     <div class="input-group"><label>زمان (دقیقه) — برای آزمون رسمی</label><input type="number" id="editExamTime" min="1" value="30"></div>
-    <div class="input-group"><label>نوع</label>
-      <select id="editExamType">
-        <option value="practice">فقط آزمایشی</option>
-        <option value="exam">فقط آزمون</option>
-        <option value="both">هم آزمایشی هم آزمون</option>
-      </select>
+    <div class="input-group"><label>حداقل درصد قبولی (۰–۱۰۰)</label>
+      <input type="number" id="editExamPass" min="0" max="100" value="50">
+      <div class="score-formula">هر ۳ پاسخ غلط = ۱ پاسخ صحیح می‌سوزد</div>
+    </div>
+    <div class="input-group"><label>نوع آزمون</label>
+      <div class="type-pick" id="editExamTypePick">
+        <label><input type="radio" name="editExamType" value="practice"> فقط آزمایشی</label>
+        <label><input type="radio" name="editExamType" value="exam"> فقط آزمون</label>
+        <label><input type="radio" name="editExamType" value="both" checked> هم آزمایشی هم آزمون</label>
+      </div>
     </div>
     <div class="row-between" style="margin-bottom:14px">
       <span>فعال</span>
@@ -471,19 +491,15 @@ body.dark .radio-opt input[type=text]{background:#12141c}
 
 <!-- STATS -->
 <div class="page top" id="statsPage">
-  <div class="topbar-mini">
-    <h2 style="color:var(--primary2);font-size:17px;margin:0">آمار</h2>
-    <button class="btn btn-secondary btn-sm" onclick="backToStaff()">برگشت</button>
-  </div>
+  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="backToStaff()">برگشت</button>
+  <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center">آمار</h2>
   <div class="list" id="statsUserList" style="max-width:560px;margin:0 auto"></div>
 </div>
 
 <!-- STAT DETAIL -->
 <div class="page top" id="statsDetailPage">
-  <div class="topbar-mini">
-    <h2 style="color:var(--primary2);font-size:17px;margin:0" id="statsDetailTitle">جزئیات</h2>
-    <button class="btn btn-secondary btn-sm" onclick="showPage('statsPage')">برگشت</button>
-  </div>
+  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="showPage('statsPage')">برگشت</button>
+  <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center" id="statsDetailTitle">جزئیات</h2>
   <div id="statsDetailBody" style="max-width:560px;margin:0 auto;width:100%"></div>
 </div>
 
@@ -981,6 +997,7 @@ async function ensureSeedExams(){
       type: 'practice',
       enabled: true,
       time_limit: 0,
+      pass_percent: 50,
       questions: SEED_QUESTIONS.slice(0,6)
     });
     await sbInsert('exams', {
@@ -988,6 +1005,7 @@ async function ensureSeedExams(){
       type: 'both',
       enabled: true,
       time_limit: 20,
+      pass_percent: 50,
       questions: SEED_QUESTIONS
     });
   }catch(e){ console.warn('seed', e); }
@@ -1005,6 +1023,7 @@ async function openManageExams(){
     list.innerHTML=rows.map(ex=>{
       const qs=Array.isArray(ex.questions)?ex.questions:(typeof ex.questions==='string'?JSON.parse(ex.questions):[]);
       const typeLabel=ex.type==='both'?'آزمایشی + آزمون':(ex.type==='practice'?'آزمایشی':'آزمون');
+      const passP=ex.pass_percent!=null?ex.pass_percent:50;
       return `<div class="card">
         <div class="row-between">
           <h4>${escapeHtml(ex.name)}</h4>
@@ -1017,6 +1036,7 @@ async function openManageExams(){
           <span class="chip ${ex.type==='both'?'both':''}">${typeLabel}</span>
           · ${qs.length} سوال
           · زمان: ${ex.time_limit||0} دقیقه
+          · قبولی: ${passP}٪
           · ${ex.enabled?'فعال':'غیرفعال'}
         </div>
         <div class="card-actions">
@@ -1068,6 +1088,7 @@ async function createNewExam(){
       type:'both',
       enabled:true,
       time_limit:15,
+      pass_percent:50,
       questions:[{ text:'', options:['','',''], correct:0, enabled:true }]
     });
     const id=rows&&rows[0]&&rows[0].id;
@@ -1085,8 +1106,10 @@ async function openEditExam(id){
     if(!ex) return;
     document.getElementById('editExamName').value=ex.name||'';
     document.getElementById('editExamTime').value=ex.time_limit||30;
-    document.getElementById('editExamType').value=ex.type||'both';
+    document.getElementById('editExamPass').value = (ex.pass_percent!=null?ex.pass_percent:50);
     document.getElementById('editExamEnabled').checked=!!ex.enabled;
+    const typ=ex.type||'both';
+    document.querySelectorAll('input[name="editExamType"]').forEach(function(r){ r.checked=(r.value===typ); });
     const qs=Array.isArray(ex.questions)?ex.questions:(typeof ex.questions==='string'?JSON.parse(ex.questions):[]);
     renderQuestionEditors(qs);
   }catch(e){ toast('خطا','err'); }
@@ -1190,7 +1213,9 @@ function addOptionToQuestion(i){
 async function saveExamEdit(){
   const name=document.getElementById('editExamName').value.trim();
   const time=parseInt(document.getElementById('editExamTime').value||'0',10);
-  const type=document.getElementById('editExamType').value;
+  const passPct=Math.min(100,Math.max(0,parseInt(document.getElementById('editExamPass').value||'50',10)));
+  const typeEl=document.querySelector('input[name="editExamType"]:checked');
+  const type=typeEl?typeEl.value:'both';
   const enabled=document.getElementById('editExamEnabled').checked;
   const raw=collectQuestionsFromEditors();
   const questions=raw.filter(function(q){ return q.text && q.options.filter(Boolean).length>=2; });
@@ -1202,7 +1227,7 @@ async function saveExamEdit(){
   });
   try{
     await sbUpdate('exams','id=eq.'+editingExamId,{
-      name, time_limit: time, type, enabled, questions
+      name, time_limit: time, type, enabled, questions, pass_percent: passPct
     });
     toast('ذخیره شد','ok');
     openManageExams();
@@ -1224,17 +1249,78 @@ async function openExamList(mode){
       return ex.type==='exam'||ex.type==='both';
     });
     if(!filtered.length){ list.innerHTML='<div class="empty">آزمونی موجود نیست</div>'; return; }
-    list.innerHTML=filtered.map(ex=>{
+
+    // نتایج کاربر
+    let myResults=[];
+    if(currentUser && mode==='exam'){
+      try{ myResults=await sbGet('exam_results','select=*&username=eq.'+encodeURIComponent(currentUser.username)+'&order=finished_at.asc'); }catch(e){}
+    }
+    function statsForExam(examId, passPct){
+      const rs=(myResults||[]).filter(r=>String(r.exam_id)===String(examId));
+      if(!rs.length) return { attempted:false, passed:false, best:0, attempts:0, attemptsToPass:0 };
+      let best=0, passed=false, attemptsToPass=0;
+      rs.forEach(function(r, idx){
+        const pct = r.percent!=null ? Number(r.percent) : 0;
+        if(pct>best) best=pct;
+        if(!passed && pct >= (passPct!=null?passPct:50)){
+          passed=true;
+          attemptsToPass = idx+1;
+        }
+      });
+      return { attempted:true, passed:passed, best:best, attempts:rs.length, attemptsToPass:attemptsToPass };
+    }
+
+    if(mode==='practice'){
+      list.innerHTML=filtered.map(ex=>{
+        const qs=Array.isArray(ex.questions)?ex.questions:(typeof ex.questions==='string'?JSON.parse(ex.questions):[]);
+        const activeQs=qs.filter(q=>q && q.enabled!==false);
+        return `<div class="card" style="cursor:pointer" onclick="startExamFlow(${ex.id},'practice')">
+          <h4>${escapeHtml(ex.name)}</h4>
+          <div class="meta">${activeQs.length} سوال · بدون محدودیت زمان</div>
+        </div>`;
+      }).join('');
+      return;
+    }
+
+    // دسته‌بندی آزمون رسمی
+    const failed=[], fresh=[], passed=[];
+    filtered.forEach(function(ex){
       const qs=Array.isArray(ex.questions)?ex.questions:(typeof ex.questions==='string'?JSON.parse(ex.questions):[]);
-      const timeTxt=mode==='practice'?'بدون محدودیت زمان':((ex.time_limit||0)+' دقیقه');
-      return `<div class="card" style="cursor:pointer" onclick="startExamFlow(${ex.id},'${mode}')">
+      const activeQs=qs.filter(q=>q && q.enabled!==false);
+      const st=statsForExam(ex.id, ex.pass_percent);
+      const item={ex:ex, qs:activeQs, st:st};
+      if(st.passed) passed.push(item);
+      else if(st.attempted) failed.push(item);
+      else fresh.push(item);
+    });
+    // ترتیب: مردودی‌ها بالا، بعد شرکت‌نشده، بعد قبول‌شده‌ها پایین
+    const ordered = failed.concat(fresh).concat(passed);
+
+    list.innerHTML=ordered.map(function(item){
+      const ex=item.ex, st=item.st, n=item.qs.length;
+      const passPct=ex.pass_percent!=null?ex.pass_percent:50;
+      let cls='card';
+      let extra='';
+      if(st.passed){
+        cls+=' exam-card-passed';
+        extra=`<div class="meta pct-ok">بالاترین: ${st.best}٪ · قبول</div>
+               <div class="meta">تعداد تلاش تا قبولی: ${st.attemptsToPass||st.attempts}</div>`;
+      } else if(st.attempted){
+        cls+=' exam-card-fail';
+        extra=`<div class="meta pct-fail">بهترین نتیجه: ${st.best}٪ (حداقل قبولی ${passPct}٪)</div>
+               <div class="meta">تلاش‌ها: ${st.attempts} — هنوز قبول نشده</div>`;
+      } else {
+        extra=`<div class="meta">حداقل قبولی: ${passPct}٪</div>`;
+      }
+      const timeTxt=((ex.time_limit||0)+' دقیقه');
+      return `<div class="${cls}" style="cursor:pointer" onclick="startExamFlow(${ex.id},'exam')">
         <h4>${escapeHtml(ex.name)}</h4>
-        <div class="meta">${qs.length} سوال · ${timeTxt}</div>
+        <div class="meta">${n} سوال · ${timeTxt}</div>
+        ${extra}
       </div>`;
     }).join('');
-  }catch(e){ list.innerHTML='<div class="empty">خطا</div>'; }
+  }catch(e){ console.error(e); list.innerHTML='<div class="empty">خطا</div>'; }
 }
-
 async function startExamFlow(id, mode){
   try{
     const rows=await sbGet('exams','select=*&id=eq.'+id);
@@ -1252,6 +1338,18 @@ async function startExamFlow(id, mode){
     );
     if(ok) beginExam(ex, qs, 'exam');
   }catch(e){ toast('خطا','err'); }
+}
+
+
+function calcExamScore(correct, wrong, total){
+  const burned = Math.floor((wrong||0) / 3);
+  const effective = Math.max(0, (correct||0) - burned);
+  const pct = total > 0 ? Math.round((effective / total) * 1000) / 10 : 0;
+  return { effective: effective, burned: burned, percent: pct };
+}
+function isPassedResult(r, passPercent){
+  const p = (passPercent!=null ? passPercent : 50);
+  return (r.percent!=null ? r.percent : 0) >= p;
 }
 
 function shuffleArray(arr){
@@ -1379,7 +1477,18 @@ async function finishExam(auto){
     if(answers[i]===q.correct){ correct++; correctIds.push(i+1); }
     else { wrong++; wrongIds.push(i+1); }
   });
+  const score = calcExamScore(correct, wrong, qs.length);
+  const passPct = activeExam.exam.pass_percent!=null ? activeExam.exam.pass_percent : 50;
+  const passed = score.percent >= passPct;
   const finishedAt=Date.now();
+
+  // تعداد تلاش‌ها
+  let attemptNo=1;
+  try{
+    const prev=await sbGet('exam_results','select=id&username=eq.'+encodeURIComponent(currentUser.username)+'&exam_id=eq.'+activeExam.exam.id);
+    attemptNo = ((prev&&prev.length)||0) + 1;
+  }catch(e){}
+
   const payload={
     username: currentUser.username,
     exam_id: activeExam.exam.id,
@@ -1387,30 +1496,55 @@ async function finishExam(auto){
     started_at: new Date(activeExam.startedAt).toISOString(),
     finished_at: new Date(finishedAt).toISOString(),
     correct, wrong, unanswered,
-    details: { correctIds, wrongIds, unansweredIds, answers }
+    percent: score.percent,
+    effective_correct: score.effective,
+    passed: passed,
+    details: { correctIds, wrongIds, unansweredIds, answers, burned: score.burned, attemptNo, passPct }
   };
   try{ await sbInsert('exam_results', payload); }catch(e){ console.error(e); }
 
-  // صفحه مرور پاسخ‌ها
-  renderReviewPage(qs, answers);
+  // ذخیره برای مرور
+  window._lastReview = { questions: qs, answers: Object.assign({}, answers), score: score, passed: passed, passPct: passPct, correct:correct, wrong:wrong, unanswered:unanswered, correctIds:correctIds, wrongIds:wrongIds, unansweredIds:unansweredIds };
 
   document.getElementById('resultContent').innerHTML=`
-    <div class="big">${correct} / ${qs.length}</div>
-    <p>درست: <b style="color:var(--ok)">${correct}</b> — سوالات: ${correctIds.join(', ')||'—'}</p>
-    <p>غلط: <b style="color:var(--err)">${wrong}</b> — سوالات: ${wrongIds.join(', ')||'—'}</p>
-    <p>بدون پاسخ: <b>${unanswered}</b> — سوالات: ${unansweredIds.join(', ')||'—'}</p>
-    <p style="margin-top:10px;font-size:12px;color:var(--muted)">زمان پایان: ${fmtTime(finishedAt)}</p>
-    <button class="btn btn-secondary" style="margin-top:12px" onclick="showPage('reviewPage')">مشاهده سوالات و جواب‌ها</button>
+    <div class="big" style="color:${passed?'var(--ok)':'var(--err)'}">${score.percent}٪</div>
+    <p style="font-weight:700;color:${passed?'var(--ok)':'var(--err)'}">${passed?'قبول شدید':'قبول نشدید'}</p>
+    <p>حداقل قبولی: ${passPct}٪</p>
+    <p>درست: <b style="color:var(--ok)">${correct}</b> · غلط: <b style="color:var(--err)">${wrong}</b> · بی‌پاسخ: <b>${unanswered}</b></p>
+    <p class="score-formula">سوزاندن: هر ۳ غلط = ۱ درست (${score.burned} سوخته) → مؤثر: ${score.effective} از ${qs.length}</p>
+    <p style="margin-top:10px;font-size:12px;color:var(--muted)">زمان پایان: ${fmtTime(finishedAt)} · تلاش شماره ${attemptNo}</p>
+    <button class="btn btn-secondary" style="margin-top:12px" onclick="showReview('blank')">مرور سوالات</button>
+    <button class="btn btn-primary" style="margin-top:10px" onclick="showReview('answers')">مشاهده پاسخ‌ها</button>
   `;
   activeExam=null;
+  showPage('resultPage');
+}
+function showReview(mode){
+  const data=window._lastReview;
+  if(!data){ showPage('resultPage'); return; }
+  renderReviewPage(data.questions, data.answers, mode==='answers');
   showPage('reviewPage');
 }
-function renderReviewPage(qs, ans){
+function renderReviewPage(qs, ans, showAnswers){
   const body=document.getElementById('reviewBody');
   if(!body) return;
+  showAnswers = !!showAnswers;
+  const title=document.querySelector('#reviewPage h2');
+  if(title) title.textContent = showAnswers ? 'مشاهده پاسخ‌ها' : 'مرور سوالات';
   body.innerHTML=(qs||[]).map(function(q,qi){
-    const userAns = ans[qi];
+    const userAns = ans ? ans[qi] : undefined;
     const unanswered = userAns===undefined;
+    if(!showAnswers){
+      // فقط سوال و گزینه‌ها بدون مشخص کردن درست/غلط
+      const opts=(q.options||[]).map(function(o){
+        return `<div class="opt" style="cursor:default">${escapeHtml(o)}</div>`;
+      }).join('');
+      return `<div class="q-card">
+        <div class="q-num">سوال ${qi+1}</div>
+        <div class="q-text" dir="auto">${escapeHtml(q.text)}</div>
+        ${opts}
+      </div>`;
+    }
     const opts=(q.options||[]).map(function(o,oi){
       let cls='opt';
       if(oi===q.correct) cls+=' correct';
@@ -1458,18 +1592,43 @@ async function openUserStats(username){
   const body=document.getElementById('statsDetailBody');
   body.innerHTML='<div class="loading">...</div>';
   try{
-    const rows=await sbGet('exam_results','select=*&username=eq.'+encodeURIComponent(username)+'&order=finished_at.desc');
+    const rows=await sbGet('exam_results','select=*&username=eq.'+encodeURIComponent(username)+'&order=finished_at.asc');
     if(!rows||!rows.length){ body.innerHTML='<div class="empty">هنوز در آزمونی شرکت نکرده</div>'; return; }
-    body.innerHTML=rows.map(r=>`
-      <div class="card">
-        <h4>${escapeHtml(r.exam_name||('آزمون #'+r.exam_id))}</h4>
-        <div class="meta">پایان: ${fmtTime(r.finished_at)}</div>
-        <div class="meta">شروع: ${fmtTime(r.started_at)}</div>
-        <div class="meta">درست: <b style="color:var(--ok)">${r.correct}</b> · غلط: <b style="color:var(--err)">${r.wrong}</b> · بدون پاسخ: ${r.unanswered}</div>
-      </div>
-    `).join('');
+    // گروه‌بندی بر اساس exam_id
+    const byExam={};
+    rows.forEach(function(r){
+      const k=String(r.exam_id);
+      if(!byExam[k]) byExam[k]=[];
+      byExam[k].push(r);
+    });
+    let html='';
+    Object.keys(byExam).forEach(function(eid){
+      const list=byExam[eid];
+      const name=list[0].exam_name||('آزمون #'+eid);
+      let passed=false, attemptPass=0, best=0;
+      list.forEach(function(r,idx){
+        const pct=r.percent!=null?Number(r.percent):0;
+        if(pct>best) best=pct;
+        const p = r.passed===true || (r.details && r.details.passPct!=null && pct>=r.details.passPct);
+        if(p && !passed){ passed=true; attemptPass=idx+1; }
+      });
+      html += `<div class="card">
+        <h4>${escapeHtml(name)}</h4>
+        <div class="meta">تعداد تلاش: ${list.length} · بهترین: ${best}٪</div>
+        <div class="meta" style="color:${passed?'var(--ok)':'var(--err)'}">${passed?('قبول در تلاش شماره '+attemptPass):('هنوز قبول نشده ('+list.length+' تلاش)')}</div>
+        <div style="margin-top:8px">`;
+      list.forEach(function(r,idx){
+        const pct=r.percent!=null?Number(r.percent):'—';
+        const ok=r.passed===true;
+        html += `<div class="meta">#${idx+1} · ${fmtTime(r.finished_at)} · ${pct}٪ · درست ${r.correct} / غلط ${r.wrong} / بی‌پاسخ ${r.unanswered} · ${ok?'<span class="pct-ok">قبول</span>':'<span class="pct-fail">مردود</span>'}</div>`;
+      });
+      html += `</div></div>`;
+    });
+    body.innerHTML=html;
   }catch(e){ body.innerHTML='<div class="empty">خطا</div>'; }
 }
+
+
 
 /* boot */
 initTheme();
