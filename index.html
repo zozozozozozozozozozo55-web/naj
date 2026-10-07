@@ -129,25 +129,7 @@ body.dark .opt.wrong{color:#fecaca!important}
 .toast.show{opacity:1}
 .toast.ok{background:#059669}
 .toast.err{background:#dc2626}
-.exam-header{
-  position:sticky;top:0;z-index:30;
-  background:var(--bg);
-  padding:max(10px, env(safe-area-inset-top)) 12px 12px;
-  border-bottom:1px solid var(--border);margin:0 0 14px;color:var(--text);
-  box-shadow:0 1px 0 var(--border)
-}
-#takeExamPage.page.active{
-  padding-top:0 !important;
-  display:flex;flex-direction:column;
-  overflow:auto;
-  -webkit-overflow-scrolling:touch
-}
-#takeExamPage .exam-header{flex-shrink:0}
-#takeExamBackBtn{
-  position:absolute;left:max(10px,env(safe-area-inset-left));top:max(10px,calc(env(safe-area-inset-top) + 6px));
-  z-index:40;min-width:auto;padding:6px 10px;font-size:12px;min-height:32px
-}
-#takeExamPage .exam-header .row-between{position:relative;padding-left:70px;padding-right:8px;justify-content:center}
+
 
 .exam-header strong,.exam-header #takeExamName{color:var(--text)!important}
 .exam-stats{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;font-size:13px}
@@ -526,6 +508,48 @@ body.dark .diff-5{color:#f87171}
   background:var(--bg);color:var(--text);margin-bottom:16px;font-size:14px;direction:ltr;text-align:left
 }
 
+
+.exam-header{
+  position:sticky;top:0;z-index:30;
+  background:var(--bg);
+  padding:max(6px, env(safe-area-inset-top)) 10px 8px;
+  border-bottom:1px solid var(--border);margin:0 0 10px;color:var(--text);
+}
+.exam-bar{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  max-width:560px;margin:0 auto;min-height:36px
+}
+.exam-bar-left{display:flex;align-items:center;gap:6px;min-width:0;flex:1}
+.exam-bar-right{display:flex;align-items:center;gap:8px;flex-shrink:0;font-size:12px;color:var(--muted)}
+#takeExamBackBtn{
+  position:static !important;top:auto !important;left:auto !important;
+  z-index:1;min-width:auto;padding:5px 9px !important;font-size:11px !important;
+  min-height:28px !important;border-radius:8px;flex-shrink:0
+}
+#takeExamName{
+  font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:100%;color:var(--text)!important;text-align:right
+}
+#takeExamPage.page.active{
+  padding-top:0 !important;display:flex;flex-direction:column;
+  overflow:auto;-webkit-overflow-scrolling:touch
+}
+#finishBar{
+  position:fixed !important;bottom:max(10px,env(safe-area-inset-bottom)) !important;
+  left:max(10px,env(safe-area-inset-left)) !important;right:auto !important;
+  padding:0 !important;background:transparent !important;border:none !important;
+  width:auto !important;z-index:40
+}
+#finishBar .btn{
+  width:auto !important;max-width:none !important;min-height:40px !important;
+  padding:8px 14px !important;font-size:13px !important;border-radius:12px;
+  box-shadow:0 4px 14px rgba(0,0,0,.18)
+}
+.practice-end{
+  text-align:center;padding:28px 16px 40px;color:var(--muted)
+}
+.practice-end .done-title{font-size:20px;font-weight:800;color:var(--primary2);margin-bottom:14px}
+
 </style>
 </head>
 <body>
@@ -709,16 +733,18 @@ body.dark .diff-5{color:#f87171}
 
 <!-- PRACTICE / EXAM TAKING -->
 <div class="page top" id="takeExamPage">
-  <button type="button" class="btn btn-secondary btn-sm" id="takeExamBackBtn" onclick="leaveExam()">برگشت</button>
   <div class="exam-header">
-    <div class="row-between" style="max-width:560px;margin:0 auto 8px">
-      <strong id="takeExamName" style="text-align:center;width:100%">—</strong>
+    <div class="exam-bar">
+      <div class="exam-bar-left">
+        <button type="button" class="btn btn-secondary btn-sm" id="takeExamBackBtn" onclick="leaveExam()">برگشت</button>
+        <strong id="takeExamName">—</strong>
+      </div>
+      <div class="exam-bar-right" id="takeExamStats"></div>
     </div>
-    <div class="exam-stats" id="takeExamStats"></div>
   </div>
-  <div id="takeExamBody" style="max-width:560px;margin:0 auto;width:100%;padding-bottom:80px"></div>
-  <div style="position:fixed;bottom:0;left:0;right:0;padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);display:none" id="finishBar">
-    <button class="btn btn-primary" style="max-width:560px;margin:0 auto;display:block" onclick="finishExam()">پایان آزمون</button>
+  <div id="takeExamBody" style="max-width:560px;margin:0 auto;width:100%;padding-bottom:72px"></div>
+  <div id="finishBar" style="display:none">
+    <button type="button" class="btn btn-primary" onclick="finishExam()">پایان آزمون</button>
   </div>
 </div>
 
@@ -1064,7 +1090,7 @@ function defaultAppState(){
 }
 function loadLocalApp(){
   try{
-    const raw=localStorage.getItem('exam_app_v4');
+    const raw=localStorage.getItem('exam_app_v5');
     if(raw){
       const o=JSON.parse(raw);
       if(o && o.banks) return o;
@@ -1073,7 +1099,7 @@ function loadLocalApp(){
   return defaultAppState();
 }
 function saveLocalApp(data){
-  try{ localStorage.setItem('exam_app_v4', JSON.stringify(data)); }catch(e){}
+  try{ localStorage.setItem('exam_app_v5', JSON.stringify(data)); }catch(e){}
 }
 /* ===== UI helpers ===== */
 function showPage(id){
@@ -1285,6 +1311,21 @@ function initPassEyes(){
 }
 
 
+function fmtDuration(sec){
+  sec = Math.max(0, parseInt(sec,10)||0);
+  const h = Math.floor(sec/3600);
+  const m = Math.floor((sec%3600)/60);
+  const s = sec % 60;
+  if(h>0) return h+' ساعت و '+m+' دقیقه و '+s+' ثانیه';
+  if(m>0) return m+' دقیقه و '+s+' ثانیه';
+  return s+' ثانیه';
+}
+function fmtDateOnly(ts){
+  try{
+    const d = new Date(ts);
+    return d.toLocaleDateString('fa-IR');
+  }catch(e){ return '—'; }
+}
 function fmtTime(ts){
   if(!ts) return '—';
   try{ return new Date(ts).toLocaleString('fa-IR'); }catch(e){ return String(ts); }
@@ -1490,7 +1531,7 @@ async function openMyStats(){
       const ok=r.passed===true;
       return `<div class="card">
         <h4>${escapeHtml(r.exam_name||('#'+r.exam_id))}</h4>
-        <div class="meta">${fmtTime(r.finished_at)}</div>
+        <div class="meta">${fmtDateOnly(r.finished_at)} · ${fmtDuration(r.duration_sec||0)}</div>
         <div class="meta">${pct}٪ · درست ${r.correct} · غلط ${r.wrong} · بی‌پاسخ ${r.unanswered}</div>
         <div class="meta" style="color:${ok?'var(--ok)':'var(--err)'}">${ok?'قبول':'مردود'}</div>
       </div>`;
@@ -1558,6 +1599,38 @@ function canBanks(){
   const p=(currentAdmin&&currentAdmin.perms)||{};
   return {view:!!(p.viewBanks||p.editBanks||p.exams), edit:!!p.editBanks};
 }
+
+function migrateQuestionDifficulties(banks){
+  // حذف سطح 1 قدیمی، شیفت 2→1 ... 5→4، سطح 5 با سوالات سخت‌تر پر می‌شود
+  return (banks||[]).map(function(b){
+    var mods = (b.modules||[]).map(function(m){
+      var qs = (m.questions||[]).map(function(q){
+        var d = parseInt(q.difficulty,10)||3;
+        if(d <= 1) return null; // حذف سطح 1
+        return Object.assign({}, q, { difficulty: d - 1 }); // 2→1 ... 5→4
+      }).filter(Boolean);
+      // پر کردن سطح 5 با سوالات سخت (قبلاً 4 یا 5 بوده‌اند که الان 3 یا 4 هستند - سخت‌ترین‌ها را کپی کن)
+      var hard = qs.filter(function(q){ return (q.difficulty||0) >= 3; });
+      var need5 = 20;
+      var levelCounts = {1:0,2:0,3:0,4:0,5:0};
+      qs.forEach(function(q){ levelCounts[q.difficulty] = (levelCounts[q.difficulty]||0)+1; });
+      var i = 0;
+      while(levelCounts[5] < need5 && hard.length){
+        var src = hard[i % hard.length];
+        qs.push(Object.assign({}, src, {
+          difficulty: 5,
+          text: src.text + (src.text.indexOf('[H]')>=0 ? '' : ' [H]')
+        }));
+        levelCounts[5]++;
+        i++;
+        if(i > 500) break;
+      }
+      return Object.assign({}, m, { questions: qs });
+    });
+    return Object.assign({}, b, { modules: mods });
+  });
+}
+
 function normalizeBanks(banks){
   // migrate old flat banks (questions at top) to modules if needed
   return (banks||[]).map(function(b){
@@ -1580,15 +1653,24 @@ function getBanks(){
       }catch(e1){
         banks = DEFAULT_BANKS;
       }
+      banks = migrateQuestionDifficulties(banks);
       try{
         d.banks = banks;
+        d.diffMigratedV5 = true;
+        saveLocalApp(d);
+      }catch(e2){}
+    } else if(!d.diffMigratedV5){
+      banks = migrateQuestionDifficulties(banks);
+      try{
+        d.banks = banks;
+        d.diffMigratedV5 = true;
         saveLocalApp(d);
       }catch(e2){}
     }
     return banks || [];
   }catch(e){
     console.error('getBanks', e);
-    try{ return JSON.parse(JSON.stringify(DEFAULT_BANKS)); }catch(e3){ return DEFAULT_BANKS || []; }
+    try{ return migrateQuestionDifficulties(JSON.parse(JSON.stringify(DEFAULT_BANKS))); }catch(e3){ return DEFAULT_BANKS || []; }
   }
 }
 function setBanks(banks){
@@ -1992,7 +2074,7 @@ function openPickQuestions(bankId, modId){
     const selected=pickSelection.some(function(s){ return s._key===key; });
     const dir=dirAttr(q.text);
     const opts=(q.options||[]).map(function(o,oi){
-      const od=dirAttr(o);
+      const od=typeof optDir==='function'?optDir(o):dirAttr(o);
       const mark = (oi===q.correct) ? ' ✓' : '';
       return '<div class="popt" dir="'+od+'" style="text-align:'+(od==='ltr'?'left':'right')+'">'+(oi+1)+') '+escapeHtml(o)+mark+'</div>';
     }).join('');
@@ -2797,9 +2879,9 @@ function renderTakeExam(){
   });
   let stats='';
   if(mode==='practice'){
-    stats=`<span class="ok">درست: ${correct}</span><span class="err">غلط: ${wrong}</span>`;
+    stats='<span class="ok">درست '+correct+'</span><span class="err">غلط '+wrong+'</span>';
   } else {
-    stats=`<span class="time" id="timerStat">--:--</span><span>پاسخ‌داده: ${Object.keys(answers).length}/${qs.length}</span>`;
+    stats='<span>پاسخ‌داده '+Object.keys(answers).length+'/'+qs.length+'</span><span class="time" id="timerStat">--:--</span>';
     if(examEndsAt) updateExamTimer();
   }
   document.getElementById('takeExamStats').innerHTML=stats;
@@ -2817,7 +2899,7 @@ function renderTakeExam(){
         cls+=' selected';
       }
       const dis = mode==='practice' && answered ? 'disabled' : '';
-      const od=dirAttr(o);
+      const od=optDir(o);
       return `<button type="button" class="${cls}" ${dis} dir="${od}" style="text-align:${od==='ltr'?'left':'right'}" onclick="answerQuestion(${qi},${oi})">${escapeHtml(o)}</button>`;
     }).join('');
     const qd=dirAttr(q.text);
@@ -2827,6 +2909,18 @@ function renderTakeExam(){
       ${optHtml}
     </div>`;
   }).join('');
+  if(mode==='practice'){
+    body.innerHTML += '<div class="practice-end"><div class="done-title">تمام</div>'
+      +'<button type="button" class="btn btn-secondary" onclick="leaveExam()">بازگشت</button></div>';
+  }
+}
+function optDir(s){
+  if(s==null) return 'rtl';
+  const str=String(s).trim();
+  if(!str) return 'rtl';
+  // اعداد و انگلیسی از چپ
+  if(/^[0-9０-９+\-.,%°√π×÷/^=<>()\[\]{}\sA-Za-z].*/.test(str) || isMostlyEnglish(str)) return 'ltr';
+  return dirAttr(str);
 }
 
 function answerQuestion(qi, oi){
@@ -2910,7 +3004,7 @@ async function finishExam(auto){
     <p>حداقل قبولی: ${passPct}٪</p>
     <p>درست: <b style="color:var(--ok)">${correct}</b> · غلط: <b style="color:var(--err)">${wrong}</b> · بی‌پاسخ: <b>${unanswered}</b></p>
     <p class="score-formula">سوزاندن: هر ۳ غلط = ۱ درست (${score.burned} سوخته) → مؤثر: ${score.effective} از ${qs.length}</p>
-    <p style="margin-top:10px;font-size:12px;color:var(--muted)">زمان پایان: ${fmtTime(finishedAt)} · تلاش شماره ${attemptNo}</p>
+    <p style="margin-top:10px;font-size:12px;color:var(--muted)">تاریخ: ${fmtDateOnly(finishedAt)} · مدت پاسخ‌گویی: ${fmtDuration(durationSec)} · تلاش ${attemptNo}</p>
     <button class="btn btn-secondary" style="margin-top:12px" onclick="showReview('blank')">مرور سوالات</button>
     <button class="btn btn-primary" style="margin-top:10px" onclick="showReview('answers')">مشاهده پاسخ‌ها</button>
   `;
@@ -3027,7 +3121,7 @@ async function openUserStats(username){
       list.forEach(function(r,idx){
         const pct=r.percent!=null?Number(r.percent):'—';
         const ok=r.passed===true;
-        html += `<div class="meta">#${idx+1} · ${fmtTime(r.finished_at)} · ${pct}٪ · درست ${r.correct} / غلط ${r.wrong} / بی‌پاسخ ${r.unanswered} · ${ok?'<span class="pct-ok">قبول</span>':'<span class="pct-fail">مردود</span>'}</div>`;
+        html += `<div class="meta">#${idx+1} · ${fmtDateOnly(r.finished_at)} · ${fmtDuration(r.duration_sec||0)} · ${pct}٪ · درست ${r.correct} / غلط ${r.wrong} / بی‌پاسخ ${r.unanswered} · ${ok?'<span class="pct-ok">قبول</span>':'<span class="pct-fail">مردود</span>'}</div>`;
       });
       html += `</div></div>`;
     });
