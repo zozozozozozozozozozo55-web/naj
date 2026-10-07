@@ -416,6 +416,88 @@ body.dark .exam-card-passed{background:rgba(52,211,153,.1)!important}
 }
 .err-slide.show{bottom:max(24px,env(safe-area-inset-bottom));opacity:1}
 
+
+/* top controls slightly lower for app status bar */
+.hamburger{
+  top:max(22px, calc(env(safe-area-inset-top) + 10px)) !important;
+}
+.night-btn{
+  top:max(22px, calc(env(safe-area-inset-top) + 10px)) !important;
+}
+/* keyboard: milder shift */
+html{
+  height:100%;
+}
+body{
+  min-height:100%;
+  min-height:100dvh;
+}
+.page.active{
+  max-height:100dvh;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.input-group input:focus,
+.input-group textarea:focus{
+  scroll-margin-bottom:120px;
+}
+/* prettier confirm modal */
+.modal-bg{
+  background:rgba(15,23,42,.55) !important;
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  padding:24px !important;
+}
+.modal{
+  border-radius:20px !important;
+  padding:26px 22px 20px !important;
+  box-shadow:0 20px 50px rgba(0,0,0,.25);
+  border:1px solid var(--border);
+  animation:modalPop .28s cubic-bezier(.2,.9,.2,1);
+}
+@keyframes modalPop{
+  from{opacity:0;transform:translateY(12px) scale(.96)}
+  to{opacity:1;transform:none}
+}
+.modal h3{
+  font-size:17px !important;
+  margin-bottom:8px !important;
+  color:var(--text) !important;
+}
+.modal p{
+  font-size:13.5px !important;
+  line-height:1.7 !important;
+  color:var(--muted) !important;
+  margin-bottom:20px !important;
+}
+.modal .form-buttons{
+  display:flex;gap:10px;
+}
+.modal .form-buttons .btn{
+  flex:1;min-height:44px;font-size:14px;
+}
+.modal .btn-danger-modal{
+  background:var(--err) !important;
+  color:#fff !important;
+  border:none !important;
+}
+/* password eye */
+.pass-wrap{position:relative}
+.pass-wrap input{padding-left:44px !important}
+.pass-eye{
+  position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  width:34px;height:34px;border:none;background:transparent;
+  cursor:pointer;font-size:18px;line-height:1;opacity:.7;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--muted);padding:0;z-index:2
+}
+.pass-eye:active{opacity:1}
+/* prompt modal input */
+.modal .modal-input{
+  width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border);
+  background:var(--bg);color:var(--text);margin-bottom:16px;font-size:14px;direction:ltr;text-align:left
+}
+
 </style>
 </head>
 <body>
@@ -452,11 +534,11 @@ body.dark .exam-card-passed{background:rgba(52,211,153,.1)!important}
     <div id="regStep2" style="display:none">
       <div class="input-group">
         <label>رمز عبور (انگلیسی، حداقل ۴ حرف)</label>
-        <input type="password" id="regPass" autocomplete="new-password" dir="ltr">
+        <div class="pass-wrap"><input class="pass-field" type="password" id="regPass" autocomplete="new-password" dir="ltr"><button type="button" class="pass-eye" onclick="togglePassEye(this)" aria-label="نمایش رمز">👁</button></div>
       </div>
       <div class="input-group">
         <label>تکرار رمز عبور</label>
-        <input type="password" id="regPass2" autocomplete="new-password" dir="ltr">
+        <div class="pass-wrap"><input class="pass-field" type="password" id="regPass2" autocomplete="new-password" dir="ltr"><button type="button" class="pass-eye" onclick="togglePassEye(this)" aria-label="نمایش رمز">👁</button></div>
       </div>
       <div class="error-msg" id="regErr2"></div>
       <div class="form-buttons">
@@ -472,7 +554,7 @@ body.dark .exam-card-passed{background:rgba(52,211,153,.1)!important}
   <div class="form-box">
     <h2>ورود</h2>
     <div class="input-group"><label>نام کاربری</label><input type="text" id="loginUser" dir="ltr"></div>
-    <div class="input-group"><label>رمز عبور</label><input type="password" id="loginPass" dir="ltr"></div>
+    <div class="input-group"><label>رمز عبور</label><div class="pass-wrap"><input class="pass-field" type="password" id="loginPass" dir="ltr"><button type="button" class="pass-eye" onclick="togglePassEye(this)" aria-label="نمایش رمز">👁</button></div></div>
     <div class="error-msg" id="loginErr"></div>
     <div class="form-buttons">
       <button class="btn btn-secondary" onclick="showPage('homePage')">برگشت</button>
@@ -485,7 +567,7 @@ body.dark .exam-card-passed{background:rgba(52,211,153,.1)!important}
 <div class="page" id="adminLoginPage">
   <div class="form-box">
     <h2>ورود ادمین</h2>
-    <div class="input-group"><label>رمز</label><input type="password" id="adminPass" dir="ltr"></div>
+    <div class="input-group"><label>رمز</label><div class="pass-wrap"><input class="pass-field" type="password" id="adminPass" dir="ltr"><button type="button" class="pass-eye" onclick="togglePassEye(this)" aria-label="نمایش رمز">👁</button></div></div>
     <div class="error-msg" id="adminErr"></div>
     <div class="form-buttons">
       <button class="btn btn-secondary" onclick="showPage('homePage')">برگشت</button>
@@ -673,7 +755,7 @@ body.dark .exam-card-passed{background:rgba(52,211,153,.1)!important}
   <div class="form-box">
     <h2>افزودن ادمین</h2>
     <div id="addAdminStep1">
-      <div class="input-group"><label>رمز مدیر</label><input type="password" id="addAdminMgrPass" dir="ltr"></div>
+      <div class="input-group"><label>رمز مدیر</label><div class="pass-wrap"><input class="pass-field" type="password" id="addAdminMgrPass" dir="ltr"><button type="button" class="pass-eye" onclick="togglePassEye(this)" aria-label="نمایش رمز">👁</button></div></div>
       <div class="error-msg" id="addAdminErr1"></div>
       <div class="form-buttons">
         <button class="btn btn-secondary" onclick="backToStaff()">برگشت</button>
@@ -682,7 +764,7 @@ body.dark .exam-card-passed{background:rgba(52,211,153,.1)!important}
     </div>
     <div id="addAdminStep2" style="display:none">
       <div class="input-group"><label>نام ادمین (انگلیسی)</label><input type="text" id="addAdminName" dir="ltr"></div>
-      <div class="input-group"><label>رمز عبور ادمین</label><input type="password" id="addAdminPass" dir="ltr"></div>
+      <div class="input-group"><label>رمز عبور ادمین</label><div class="pass-wrap"><input class="pass-field" type="password" id="addAdminPass" dir="ltr"><button type="button" class="pass-eye" onclick="togglePassEye(this)" aria-label="نمایش رمز">👁</button></div></div>
       <div class="error-msg" id="addAdminErr2"></div>
       <div class="form-buttons">
         <button class="btn btn-secondary" onclick="document.getElementById('addAdminStep2').style.display='none';document.getElementById('addAdminStep1').style.display=''">قبلی</button>
@@ -785,9 +867,12 @@ body.dark .exam-card-passed{background:rgba(52,211,153,.1)!important}
   <div class="modal">
     <h3 id="confirmTitle">تأیید</h3>
     <p id="confirmDesc"></p>
+    <div id="confirmInputWrap" style="display:none">
+      <input type="text" class="modal-input" id="confirmInput" autocomplete="off">
+    </div>
     <div class="form-buttons">
-      <button class="btn btn-secondary" onclick="closeConfirm(false)">انصراف</button>
-      <button class="btn btn-primary" id="confirmOk" onclick="closeConfirm(true)">شروع</button>
+      <button type="button" class="btn btn-secondary" onclick="closeConfirm(false)">انصراف</button>
+      <button type="button" class="btn btn-primary" id="confirmOk" onclick="closeConfirm(true)">تأیید</button>
     </div>
   </div>
 </div>
@@ -808,7 +893,7 @@ body.dark .exam-card-passed{background:rgba(52,211,153,.1)!important}
   <div class="form-box">
     <h2>تغییر رمز</h2>
     <div id="cpStep1">
-      <div class="input-group"><label>رمز فعلی</label><input type="password" id="cpCurrent" dir="ltr"></div>
+      <div class="input-group"><label>رمز فعلی</label><div class="pass-wrap"><input class="pass-field" type="password" id="cpCurrent" dir="ltr"><button type="button" class="pass-eye" onclick="togglePassEye(this)" aria-label="نمایش رمز">👁</button></div></div>
       <div class="error-msg" id="cpErr1"></div>
       <div class="form-buttons">
         <button class="btn btn-secondary" onclick="cancelChangePass()">انصراف</button>
@@ -816,8 +901,8 @@ body.dark .exam-card-passed{background:rgba(52,211,153,.1)!important}
       </div>
     </div>
     <div id="cpStep2" style="display:none">
-      <div class="input-group"><label>رمز جدید</label><input type="password" id="cpNew" dir="ltr"></div>
-      <div class="input-group"><label>تکرار رمز جدید</label><input type="password" id="cpNew2" dir="ltr"></div>
+      <div class="input-group"><label>رمز جدید</label><div class="pass-wrap"><input class="pass-field" type="password" id="cpNew" dir="ltr"><button type="button" class="pass-eye" onclick="togglePassEye(this)" aria-label="نمایش رمز">👁</button></div></div>
+      <div class="input-group"><label>تکرار رمز جدید</label><div class="pass-wrap"><input class="pass-field" type="password" id="cpNew2" dir="ltr"><button type="button" class="pass-eye" onclick="togglePassEye(this)" aria-label="نمایش رمز">👁</button></div></div>
       <div class="error-msg" id="cpErr2"></div>
       <div class="form-buttons">
         <button class="btn btn-secondary" onclick="document.getElementById('cpStep2').style.display='none';document.getElementById('cpStep1').style.display=''">قبلی</button>
@@ -921,7 +1006,6 @@ let examTimer = null;
 let examEndsAt = 0;
 let editingExamId = null;
 let permAdminName = null;
-let confirmResolver = null;
 
 
 const SEED_QUESTIONS = [
@@ -1007,7 +1091,7 @@ async function startDeleteAccount(){
   if(!currentUser) return;
   const ok=await confirmModal('حذف حساب','آیا از حذف حساب خود مطمئن هستید؟ این عمل برگشت‌ناپذیر است.','ادامه');
   if(!ok) return;
-  const pass=prompt('رمز حساب را وارد کنید:');
+  const pass=await promptPasswordModal('حذف حساب','برای تأیید حذف، رمز حساب خود را وارد کنید:');
   if(pass===null) return;
   if(pass!==currentUser.password){ toast('رمز اشتباه است','err'); return; }
   try{
@@ -1059,20 +1143,99 @@ function backToStaff(){
   if(isManager) showPage('managerPage');
   else showPage('adminPage');
 }
-function confirmModal(title, desc, okText){
-  return new Promise(resolve=>{
-    confirmResolver=resolve;
-    document.getElementById('confirmTitle').textContent=title;
-    document.getElementById('confirmDesc').textContent=desc;
-    document.getElementById('confirmOk').textContent = okText || 'تأیید';
+
+let confirmResolver = null;
+let confirmMode = 'confirm'; // confirm | prompt
+function confirmModal(title, desc, okText, opts){
+  opts = opts || {};
+  return new Promise(function(resolve){
+    confirmResolver = resolve;
+    confirmMode = 'confirm';
+    document.getElementById('confirmTitle').textContent = title || 'تأیید';
+    document.getElementById('confirmDesc').textContent = desc || '';
+    document.getElementById('confirmDesc').style.display = desc ? '' : 'none';
+    var wrap = document.getElementById('confirmInputWrap');
+    if(wrap) wrap.style.display = 'none';
+    var okBtn = document.getElementById('confirmOk');
+    okBtn.textContent = okText || 'تأیید';
+    okBtn.className = 'btn ' + (opts.danger ? 'btn-danger-modal' : 'btn-primary');
+    document.getElementById('confirmModal').classList.add('show');
+  });
+}
+function promptModal(title, desc, placeholder, okText){
+  return new Promise(function(resolve){
+    confirmResolver = resolve;
+    confirmMode = 'prompt';
+    document.getElementById('confirmTitle').textContent = title || 'ورود مقدار';
+    document.getElementById('confirmDesc').textContent = desc || '';
+    document.getElementById('confirmDesc').style.display = desc ? '' : 'none';
+    var wrap = document.getElementById('confirmInputWrap');
+    var inp = document.getElementById('confirmInput');
+    if(wrap) wrap.style.display = '';
+    if(inp){
+      inp.value = '';
+      inp.placeholder = placeholder || '';
+      inp.type = 'text';
+      setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 80);
+    }
+    var okBtn = document.getElementById('confirmOk');
+    okBtn.textContent = okText || 'تأیید';
+    okBtn.className = 'btn btn-primary';
+    document.getElementById('confirmModal').classList.add('show');
+  });
+}
+function promptPasswordModal(title, desc){
+  return new Promise(function(resolve){
+    confirmResolver = resolve;
+    confirmMode = 'prompt';
+    document.getElementById('confirmTitle').textContent = title || 'رمز';
+    document.getElementById('confirmDesc').textContent = desc || '';
+    document.getElementById('confirmDesc').style.display = desc ? '' : 'none';
+    var wrap = document.getElementById('confirmInputWrap');
+    var inp = document.getElementById('confirmInput');
+    if(wrap) wrap.style.display = '';
+    if(inp){
+      inp.value = '';
+      inp.placeholder = 'رمز عبور';
+      inp.type = 'password';
+      setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 80);
+    }
+    var okBtn = document.getElementById('confirmOk');
+    okBtn.textContent = 'ادامه';
+    okBtn.className = 'btn btn-primary';
     document.getElementById('confirmModal').classList.add('show');
   });
 }
 function closeConfirm(ok){
-  document.getElementById('confirmModal').classList.remove('show');
-  if(confirmResolver) confirmResolver(ok);
-  confirmResolver=null;
+  var modal = document.getElementById('confirmModal');
+  if(modal) modal.classList.remove('show');
+  var val = null;
+  if(ok && confirmMode === 'prompt'){
+    var inp = document.getElementById('confirmInput');
+    val = inp ? inp.value : '';
+  } else if(ok){
+    val = true;
+  } else {
+    val = confirmMode === 'prompt' ? null : false;
+  }
+  if(confirmResolver) confirmResolver(val);
+  confirmResolver = null;
+  confirmMode = 'confirm';
 }
+function togglePassEye(btn){
+  var wrap = btn.closest('.pass-wrap');
+  if(!wrap) return;
+  var inp = wrap.querySelector('input');
+  if(!inp) return;
+  if(inp.type === 'password'){
+    inp.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    inp.type = 'password';
+    btn.textContent = '👁';
+  }
+}
+
 function fmtTime(ts){
   if(!ts) return '—';
   try{ return new Date(ts).toLocaleString('fa-IR'); }catch(e){ return String(ts); }
@@ -1424,9 +1587,9 @@ function onBankCardClick(ev, id){
   if(ev.target.closest('button,label,input,.switch,.slider')) return;
   openBankModules(id);
 }
-function createQuestionBank(){
+async function createQuestionBank(){
   if(!canBanks().edit) return;
-  const name=prompt('نام بانک سوال:');
+  const name=await promptModal('بانک جدید','نام بانک سوال را وارد کنید','مثلاً B1','ایجاد');
   if(!name||!name.trim()) return;
   const banks=getBanks();
   const id='bank_'+Date.now();
@@ -1520,9 +1683,9 @@ function openBankModules(bankId){
   }).join('');
   showPage('bankModulesPage');
 }
-function createModule(){
+async function createModule(){
   if(!canBanks().edit||!currentBankId) return;
-  const name=prompt('نام بخش:');
+  const name=await promptModal('بخش جدید','نام بخش یا ماژول را وارد کنید','مثلاً Module 1','ایجاد');
   if(!name||!name.trim()) return;
   const banks=getBanks();
   const b=banks.find(x=>x.id===currentBankId);
@@ -1905,11 +2068,17 @@ async function deleteAdmin(name){
 }
 async function deleteUser(username){
   if(!isManager) return;
-  if(!confirm('کاربر «'+username+'» حذف شود؟')) return;
+  const ok = await confirmModal(
+    'حذف کاربر',
+    'آیا از حذف کاربر «'+username+'» مطمئن هستید؟ این عمل برگشت‌ناپذیر است و نتایج آزمون‌های او نیز حذف می‌شود.',
+    'حذف کاربر',
+    { danger: true }
+  );
+  if(!ok) return;
   try{
     await sbDelete('exam_users','username=eq.'+encodeURIComponent(username));
     try{ await sbDelete('exam_results','username=eq.'+encodeURIComponent(username)); }catch(e){}
-    toast('حذف شد','ok');
+    toast('کاربر حذف شد','ok');
     openUsers();
   }catch(e){ toast('خطا در حذف','err'); }
 }
@@ -2594,9 +2763,10 @@ function answerQuestion(qi, oi){
   renderTakeExam();
 }
 
-function leaveExam(){
+async function leaveExam(){
   if(activeExam&&activeExam.mode==='exam'){
-    if(!confirm('آزمون تمام نشده. خارج می‌شوید؟')) return;
+    const okLeave=await confirmModal('خروج از آزمون','آزمون هنوز تمام نشده است. آیا می‌خواهید خارج شوید؟','خروج',{danger:true});
+    if(!okLeave) return;
   }
   stopExamTimer();
   activeExam=null;
