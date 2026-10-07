@@ -130,10 +130,25 @@ body.dark .opt.wrong{color:#fecaca!important}
 .toast.ok{background:#059669}
 .toast.err{background:#dc2626}
 .exam-header{
-  position:sticky;top:0;background:color-mix(in srgb, var(--bg) 92%, transparent);
-  backdrop-filter:blur(10px);padding:12px 0;z-index:10;
-  border-bottom:1px solid var(--border);margin-bottom:14px;color:var(--text)
+  position:sticky;top:0;z-index:30;
+  background:var(--bg);
+  padding:max(10px, env(safe-area-inset-top)) 12px 12px;
+  border-bottom:1px solid var(--border);margin:0 0 14px;color:var(--text);
+  box-shadow:0 1px 0 var(--border)
 }
+#takeExamPage.page.active{
+  padding-top:0 !important;
+  display:flex;flex-direction:column;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch
+}
+#takeExamPage .exam-header{flex-shrink:0}
+#takeExamBackBtn{
+  position:absolute;left:max(10px,env(safe-area-inset-left));top:max(10px,calc(env(safe-area-inset-top) + 6px));
+  z-index:40;min-width:auto;padding:6px 10px;font-size:12px;min-height:32px
+}
+#takeExamPage .exam-header .row-between{position:relative;padding-left:70px;padding-right:8px;justify-content:center}
+
 .exam-header strong,.exam-header #takeExamName{color:var(--text)!important}
 .exam-stats{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;font-size:13px}
 .exam-stats span{padding:4px 10px;border-radius:8px;background:var(--card);color:var(--text);border:1px solid var(--border)}
@@ -694,10 +709,10 @@ body.dark .diff-5{color:#f87171}
 
 <!-- PRACTICE / EXAM TAKING -->
 <div class="page top" id="takeExamPage">
+  <button type="button" class="btn btn-secondary btn-sm" id="takeExamBackBtn" onclick="leaveExam()">برگشت</button>
   <div class="exam-header">
     <div class="row-between" style="max-width:560px;margin:0 auto 8px">
-      <strong id="takeExamName">—</strong>
-      <button class="btn btn-secondary btn-sm" id="takeExamBackBtn" onclick="leaveExam()">خروج</button>
+      <strong id="takeExamName" style="text-align:center;width:100%">—</strong>
     </div>
     <div class="exam-stats" id="takeExamStats"></div>
   </div>
@@ -1073,6 +1088,15 @@ function showPage(id){
   if(night) night.classList.toggle('hidden', !nightPages[id]);
   updateMenuForPage(id);
   closeMenu();
+  if(id==='takeExamPage'){
+    setTimeout(function(){
+      try{
+        var page=document.getElementById('takeExamPage');
+        if(page) page.scrollTop=0;
+        window.scrollTo(0,0);
+      }catch(e){}
+    }, 20);
+  }
   try{
     const fab=document.getElementById('examSaveFab');
     if(fab && id!=='editExamPage') fab.classList.remove('show');
@@ -2725,13 +2749,28 @@ function beginExam(ex, qs, mode){
   stopExamTimer();
   document.getElementById('takeExamName').textContent=ex.name;
   document.getElementById('finishBar').style.display = mode==='exam' ? 'block' : 'none';
-  document.getElementById('takeExamBackBtn').style.display = mode==='practice' ? '' : 'none';
+  var backBtn=document.getElementById('takeExamBackBtn');
+  if(backBtn) backBtn.style.display = '';
   if(mode==='exam' && ex.time_limit>0){
     examEndsAt = Date.now() + ex.time_limit*60*1000;
     examTimer=setInterval(updateExamTimer, 500);
+  } else {
+    examEndsAt = null;
   }
   renderTakeExam();
   showPage('takeExamPage');
+  // همیشه از بالای صفحه شروع شود
+  setTimeout(function(){
+    try{
+      var page=document.getElementById('takeExamPage');
+      if(page) page.scrollTop = 0;
+      window.scrollTo(0,0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      var body=document.getElementById('takeExamBody');
+      if(body) body.scrollTop = 0;
+    }catch(e){}
+  }, 30);
 }
 
 function stopExamTimer(){
@@ -2798,12 +2837,17 @@ function answerQuestion(qi, oi){
 }
 
 async function leaveExam(){
-  if(activeExam&&activeExam.mode==='exam'){
-    const okLeave=await confirmModal('خروج از آزمون','آزمون هنوز تمام نشده است. آیا می‌خواهید خارج شوید؟','خروج',{danger:true});
+  if(activeExam){
+    const answered = Object.keys(answers||{}).length;
+    const msg = activeExam.mode==='exam'
+      ? (answered ? 'آزمون هنوز تمام نشده. با خروج، این تلاش در آمار ثبت نمی‌شود. خارج می‌شوید؟' : 'هنوز به سوالی پاسخ نداده‌اید. از آزمون خارج می‌شوید؟')
+      : 'از آزمون آزمایشی خارج می‌شوید؟';
+    const okLeave=await confirmModal('خروج از آزمون', msg, 'خروج', {danger:true});
     if(!okLeave) return;
   }
   stopExamTimer();
   activeExam=null;
+  answers={};
   showPage('userMainPage');
 }
 
@@ -2815,6 +2859,15 @@ async function finishExam(auto){
   }
   stopExamTimer();
   const qs=activeExam.questions;
+  const answeredCount = Object.keys(answers||{}).length;
+  // بدون هیچ پاسخ → آمار ثبت نشود
+  if(answeredCount === 0){
+    activeExam=null;
+    answers={};
+    toast('چون به هیچ سوالی پاسخ ندادید، این آزمون در آمار ثبت نشد','ok');
+    showPage('userMainPage');
+    return;
+  }
   let correct=0, wrong=0, unanswered=0;
   const correctIds=[], wrongIds=[], unansweredIds=[];
   qs.forEach((q,i)=>{
