@@ -719,14 +719,14 @@ body.dark .diff-5{color:#f87171}
 
 <!-- MY STATS -->
 <div class="page top" id="myStatsPage">
-  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="showPage('userMainPage')">برگشت</button>
+  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="showPage('userMainPage', {replace:true})">برگشت</button>
   <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center">آمار من</h2>
   <div id="myStatsBody" style="max-width:560px;margin:0 auto;width:100%"></div>
 </div>
 
 <!-- EXAM LIST -->
 <div class="page top" id="examListPage">
-  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="showPage('userMainPage')">برگشت</button>
+  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="showPage('userMainPage', {replace:true})">برگشت</button>
   <h2 id="examListTitle" style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center">آزمون‌ها</h2>
   <div class="list" id="examList" style="max-width:560px;margin:0 auto"></div>
 </div>
@@ -759,7 +759,7 @@ body.dark .diff-5{color:#f87171}
     <button class="btn btn-secondary" onclick="showReview('blank')">مرور سوالات (بدون جواب)</button>
     <button class="btn btn-primary" onclick="showReview('answers')">مشاهده پاسخ‌ها</button>
     <button class="btn btn-secondary" onclick="showPage('resultPage')">خلاصه نتیجه</button>
-    <button class="btn btn-primary" onclick="showPage('userMainPage')">صفحه اصلی</button>
+    <button class="btn btn-primary" onclick="showPage('userMainPage', {replace:true})">صفحه اصلی</button>
   </div>
 </div>
 
@@ -768,7 +768,7 @@ body.dark .diff-5{color:#f87171}
   <div class="panel result-box">
     <h2>نتیجه آزمون</h2>
     <div id="resultContent"></div>
-    <button class="btn btn-primary" style="margin-top:10px" onclick="showPage('userMainPage')">بازگشت به صفحه اصلی</button>
+    <button class="btn btn-primary" style="margin-top:10px" onclick="showPage('userMainPage', {replace:true})">بازگشت به صفحه اصلی</button>
   </div>
 </div>
 
@@ -1102,10 +1102,16 @@ function saveLocalApp(data){
   try{ localStorage.setItem('exam_app_v5', JSON.stringify(data)); }catch(e){}
 }
 /* ===== UI helpers ===== */
-function showPage(id){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+
+let pageStack = [];
+let currentPageId = 'homePage';
+let navLock = false;
+
+function applyPage(id){
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
   const el=document.getElementById(id);
   if(el) el.classList.add('active');
+  currentPageId = id;
   const ham=document.getElementById('mainHam');
   const hamPages={homePage:1,userMainPage:1,managerPage:1,adminPage:1};
   if(ham) ham.classList.toggle('hidden', !hamPages[id]);
@@ -1135,7 +1141,94 @@ function showPage(id){
       else if(pickIds[id] && pickSelection.length) g.classList.add('show');
     }
   }catch(e){}
+  try{
+    window.scrollTo(0,0);
+    document.documentElement.scrollTop=0;
+    document.body.scrollTop=0;
+  }catch(e){}
 }
+
+function showPage(id, opts){
+  opts = opts || {};
+  if(!id || !document.getElementById(id)) return;
+  // replace: بدون اضافه شدن به تاریخچه (مثلاً بعد از لاگین)
+  if(opts.replace){
+    pageStack = [id];
+    applyPage(id);
+    try{ history.replaceState({ page: id, stack: pageStack.slice() }, '', '#'+id); }catch(e){}
+    return;
+  }
+  // همان صفحه
+  if(id === currentPageId && !opts.force){
+    applyPage(id);
+    return;
+  }
+  if(currentPageId && pageStack[pageStack.length-1] !== currentPageId){
+    pageStack.push(currentPageId);
+  }
+  // جلوگیری از تکرار پشت‌سرهم
+  if(pageStack[pageStack.length-1] === id){
+    pageStack.pop();
+  }
+  pageStack.push(id);
+  // محدود کردن عمق
+  if(pageStack.length > 40) pageStack = pageStack.slice(-30);
+  applyPage(id);
+  try{ history.pushState({ page: id, stack: pageStack.slice() }, '', '#'+id); }catch(e){}
+}
+
+function goBackInApp(){
+  // اگر در آزمون رسمی هستیم، تأیید خروج
+  if(currentPageId === 'takeExamPage' && activeExam){
+    leaveExam();
+    return true;
+  }
+  if(pageStack.length > 1){
+    pageStack.pop(); // صفحه فعلی
+    var prev = pageStack[pageStack.length-1] || 'homePage';
+    applyPage(prev);
+    try{ history.pushState({ page: prev, stack: pageStack.slice() }, '', '#'+prev); }catch(e){}
+    return true;
+  }
+  // ریشه
+  if(currentPageId !== 'homePage'){
+    // اگر لاگین است به صفحه اصلی نقش برگرد
+    if(currentUser){ showPage('userMainPage', {replace:true}); return true; }
+    if(isManager){ showPage('managerPage', {replace:true}); return true; }
+    if(currentAdmin){ showPage('adminPage', {replace:true}); return true; }
+    showPage('homePage', {replace:true});
+    return true;
+  }
+  return false; // واقعاً خروج از اپ
+}
+
+window.addEventListener('popstate', function(ev){
+  if(navLock) return;
+  // دکمه بک اندروید / مرورگر
+  if(currentPageId === 'takeExamPage' && activeExam){
+    // جلوگیری از خروج خام — تأیید
+    try{ history.pushState({ page: 'takeExamPage', stack: pageStack.slice() }, '', '#takeExamPage'); }catch(e){}
+    leaveExam();
+    return;
+  }
+  if(pageStack.length > 1){
+    pageStack.pop();
+    var prev = pageStack[pageStack.length-1] || 'homePage';
+    applyPage(prev);
+    return;
+  }
+  // ریشه: اگر home نیست به home نقش
+  if(currentPageId !== 'homePage' && currentPageId !== 'userMainPage' && currentPageId !== 'managerPage' && currentPageId !== 'adminPage'){
+    var hub = currentUser ? 'userMainPage' : (isManager ? 'managerPage' : (currentAdmin ? 'adminPage' : 'homePage'));
+    pageStack = [hub];
+    applyPage(hub);
+    try{ history.replaceState({ page: hub, stack: pageStack.slice() }, '', '#'+hub); }catch(e){}
+    return;
+  }
+  // در صفحه اصلی نقش — اجازه خروج از اپ (WebView)
+});
+
+
 function updateMenuForPage(id){
   const menu=document.getElementById("mainMenu");
   if(!menu) return;
@@ -1203,8 +1296,8 @@ function toast(msg, type){
   setTimeout(()=>t.classList.remove('show'), 2500);
 }
 function backToStaff(){
-  if(isManager) showPage('managerPage');
-  else showPage('adminPage');
+  if(isManager) showPage('managerPage', {replace:true});
+  else showPage('adminPage', {replace:true});
 }
 
 let confirmResolver = null;
@@ -1404,7 +1497,7 @@ async function doLogin(){
     isManager=false; currentAdmin=null;
     document.getElementById('userWelcome').textContent=row.username;
     updateMenuForPage('userMainPage');
-    showPage('userMainPage');
+    showPage('userMainPage', {replace:true});
   }catch(e){
     console.error(e);
     err.textContent='خطا در ورود';
@@ -1419,7 +1512,7 @@ async function doAdminLogin(){
   if(p===mp){
     isManager=true; currentAdmin=null; currentUser=null;
     updateMenuForPage('managerPage');
-    showPage('managerPage');
+    showPage('managerPage', {replace:true});
     return;
   }
   try{
@@ -1436,7 +1529,7 @@ async function doAdminLogin(){
     };
     renderAdminPanel();
     updateMenuForPage('adminPage');
-    showPage('adminPage');
+    showPage('adminPage', {replace:true});
   }catch(e){
     console.error(e);
     err.textContent='خطا در ورود ادمین';
@@ -1446,7 +1539,10 @@ async function doAdminLogin(){
 function logout(){
   currentUser=null; isManager=false; currentAdmin=null;
   stopExamTimer();
-  showPage('homePage');
+  activeExam=null;
+  answers={};
+  pageStack=[];
+  showPage('homePage', {replace:true});
 }
 
 let cpRole = null; // user | admin | manager
@@ -1465,9 +1561,9 @@ function startChangePass(){
   showPage('changePassPage');
 }
 function cancelChangePass(){
-  if(cpRole==='user') showPage('userMainPage');
-  else if(cpRole==='manager') showPage('managerPage');
-  else if(cpRole==='admin') showPage('adminPage');
+  if(cpRole==='user') showPage('userMainPage', {replace:true});
+  else if(cpRole==='manager') showPage('managerPage', {replace:true});
+  else if(cpRole==='admin') showPage('adminPage', {replace:true});
   else showPage('homePage');
 }
 async function cpGoStep2(){
@@ -2153,7 +2249,8 @@ function applyPickedFromBanks(){ applyPickSelection(); }
 
 initTheme();
 if(typeof initPassEyes==='function') initPassEyes();
-showPage('homePage');
+showPage('homePage', {replace:true});
+try{ history.replaceState({page:'homePage'}, '', '#homePage'); }catch(e){}
 
 function renderAdminPanel(){
   const box=document.getElementById('adminBtns');
@@ -2942,7 +3039,7 @@ async function leaveExam(){
   stopExamTimer();
   activeExam=null;
   answers={};
-  showPage('userMainPage');
+  showPage('userMainPage', {replace:true});
 }
 
 async function finishExam(auto){
@@ -2959,7 +3056,7 @@ async function finishExam(auto){
     activeExam=null;
     answers={};
     toast('چون به هیچ سوالی پاسخ ندادید، این آزمون در آمار ثبت نشد','ok');
-    showPage('userMainPage');
+    showPage('userMainPage', {replace:true});
     return;
   }
   let correct=0, wrong=0, unanswered=0;
@@ -3198,7 +3295,8 @@ function canBanks(){
 
 initTheme();
 if(typeof initPassEyes==='function') initPassEyes();
-showPage('homePage');
+showPage('homePage', {replace:true});
+try{ history.replaceState({page:'homePage'}, '', '#homePage'); }catch(e){}
 </script>
 </body>
 </html>
