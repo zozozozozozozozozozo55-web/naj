@@ -923,17 +923,6 @@ function loadLocalApp(){
 function saveLocalApp(data){
   try{ localStorage.setItem('exam_app_v3', JSON.stringify(data)); }catch(e){}
 }
-function getBanks(){
-  const d=loadLocalApp();
-  return d.banks||[];
-}
-function setBanks(banks){
-  const d=loadLocalApp();
-  d.banks=banks;
-  saveLocalApp(d);
-}
-
-
 /* ===== UI helpers ===== */
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1160,7 +1149,9 @@ async function doAdminLogin(){
 function logout(){
   currentUser=null; isManager=false; currentAdmin=null;
   stopExamTimer();
-  
+  showPage('homePage');
+}
+
 let cpRole = null; // user | admin | manager
 function startChangePass(){
   if(currentUser) cpRole='user';
@@ -1301,9 +1292,9 @@ function selectExamType(val){
 
 
 function canBanks(){
-  if(isManager) return {view:true,edit:true};
-  const p=currentAdmin&&currentAdmin.perms||{};
-  return {view:!!(p.viewBanks||p.editBanks), edit:!!p.editBanks};
+  if(typeof isManager!=='undefined' && isManager) return {view:true,edit:true};
+  const p=(currentAdmin&&currentAdmin.perms)||{};
+  return {view:!!(p.viewBanks||p.editBanks||p.exams), edit:!!p.editBanks};
 }
 function normalizeBanks(banks){
   // migrate old flat banks (questions at top) to modules if needed
@@ -1318,14 +1309,25 @@ function normalizeBanks(banks){
   });
 }
 function getBanks(){
-  const d=loadLocalApp();
-  let banks = normalizeBanks(d.banks);
-  if(!banks || !banks.length){
-    banks = JSON.parse(JSON.stringify(DEFAULT_BANKS));
-    d.banks = banks;
-    saveLocalApp(d);
+  try{
+    const d=loadLocalApp();
+    let banks = normalizeBanks(d && d.banks);
+    if(!banks || !banks.length){
+      try{
+        banks = JSON.parse(JSON.stringify(DEFAULT_BANKS));
+      }catch(e1){
+        banks = DEFAULT_BANKS;
+      }
+      try{
+        d.banks = banks;
+        saveLocalApp(d);
+      }catch(e2){}
+    }
+    return banks || [];
+  }catch(e){
+    console.error('getBanks', e);
+    try{ return JSON.parse(JSON.stringify(DEFAULT_BANKS)); }catch(e3){ return DEFAULT_BANKS || []; }
   }
-  return banks;
 }
 function setBanks(banks){
   const d=loadLocalApp();
@@ -1337,29 +1339,41 @@ function countBankQs(b){
 }
 
 function openQuestionBanks(){
-  const c=canBanks();
-  if(!c.view) return;
-  showPage('banksPage');
-  const wrap=document.getElementById('banksAddWrap');
-  if(wrap) wrap.style.display=c.edit?'':'none';
-  const list=document.getElementById('banksList');
-  const banks=getBanks();
-  if(!banks.length){ list.innerHTML='<div class="empty">بانکی نیست</div>'; return; }
-  list.innerHTML=banks.map(function(b){
-    const n=countBankQs(b);
-    const mods=(b.modules||[]).length;
-    const en=b.enabled!==false;
-    return `<div class="bk-card" data-id="${b.id}" onclick="onBankCardClick(event,'${b.id}')">
-      <div class="bk-title">${escapeHtml(b.name)}</div>
-      <div class="bk-meta">${mods} بخش · ${n} سوال</div>
-      <div class="bk-bot">
-        <div class="bk-bot-left">
-          ${c.edit?`<label class="switch" onclick="event.stopPropagation()"><input type="checkbox" ${en?'checked':''} onchange="toggleBankEnabled('${b.id}',this.checked)"><span class="slider"></span></label>`:''}
-        </div>
-        ${c.edit?`<button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteBank('${b.id}')">حذف</button>`:''}
-      </div>
-    </div>`;
-  }).join('');
+  try{
+    const c=canBanks();
+    if(!c.view && !isManager){
+      toast('دسترسی به بانک سوال ندارید','err');
+      return;
+    }
+    showPage('banksPage');
+    const wrap=document.getElementById('banksAddWrap');
+    if(wrap) wrap.style.display=(c.edit||isManager)?'':'none';
+    const list=document.getElementById('banksList');
+    if(!list){ toast('خطای صفحه بانک','err'); return; }
+    const banks=getBanks();
+    if(!banks || !banks.length){
+      list.innerHTML='<div class="empty">بانکی نیست — افزودن بانک را بزنید یا صفحه را رفرش کنید</div>';
+      return;
+    }
+    const canEdit = !!(c.edit||isManager);
+    list.innerHTML=banks.map(function(b){
+      const n=typeof countBankQs==='function'?countBankQs(b):0;
+      const mods=(b.modules||[]).length;
+      const en=b.enabled!==false;
+      const id=String(b.id||'').replace(/'/g,'');
+      return '<div class="bk-card" data-id="'+id+'" onclick="onBankCardClick(event,\''+id+'\')">'
+        +'<div class="bk-title">'+escapeHtml(b.name||id)+'</div>'
+        +'<div class="bk-meta">'+mods+' بخش · '+n+' سوال</div>'
+        +'<div class="bk-bot"><div class="bk-bot-left">'
+        +(canEdit?'<label class="switch" onclick="event.stopPropagation()"><input type="checkbox" '+(en?'checked':'')+' onchange="toggleBankEnabled(\''+id+'\',this.checked)"><span class="slider"></span></label>':'')
+        +'</div>'
+        +(canEdit?'<button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteBank(\''+id+'\')">حذف</button>':'')
+        +'</div></div>';
+    }).join('');
+  }catch(e){
+    console.error(e);
+    toast('خطا در باز کردن بانک سوال','err');
+  }
 }
 function onBankCardClick(ev, id){
   if(ev.target.closest('button,label,input,.switch,.slider')) return;
@@ -1656,19 +1670,30 @@ function saveBankEdit(){ saveSectionEdit(); }
 /* ===== انتخاب از بانک برای آزمون ===== */
 
 function openPickFromBank(){
-  pickMode=true;
-  showPage('pickBankListPage');
-  updatePickSaveBars();
-  const list=document.getElementById('pickBankList2');
-  const banks=getBanks().filter(function(b){ return b.enabled!==false; });
-  list.innerHTML=banks.map(function(b){
-    const n=countBankQs(b);
-    const mods=(b.modules||[]).filter(function(m){ return m.enabled!==false; }).length;
-    return `<div class="bk-card" onclick="openPickModules('${b.id}')">
-      <div class="bk-title">${escapeHtml(b.name)}</div>
-      <div class="bk-meta">${mods} بخش فعال · ${n} سوال</div>
-    </div>`;
-  }).join('') || '<div class="empty">بانک فعالی نیست</div>';
+  try{
+    pickMode=true;
+    if(typeof pickSelection==='undefined' || !pickSelection) pickSelection=[];
+    showPage('pickBankListPage');
+    if(typeof updatePickSaveBars==='function') updatePickSaveBars();
+    const list=document.getElementById('pickBankList2')||document.getElementById('pickBankList');
+    if(!list){ toast('صفحه انتخاب بانک پیدا نشد','err'); return; }
+    const banks=(getBanks()||[]).filter(function(b){ return b && b.enabled!==false; });
+    if(!banks.length){
+      list.innerHTML='<div class="empty">بانک فعالی نیست</div>';
+      return;
+    }
+    list.innerHTML=banks.map(function(b){
+      const n=typeof countBankQs==='function'?countBankQs(b):0;
+      const mods=(b.modules||[]).filter(function(m){ return m.enabled!==false; }).length;
+      const id=String(b.id||'').replace(/'/g,'');
+      return '<div class="bk-card" onclick="openPickModules(\''+id+'\')">'
+        +'<div class="bk-title">'+escapeHtml(b.name||id)+'</div>'
+        +'<div class="bk-meta">'+mods+' بخش فعال · '+n+' سوال</div></div>';
+    }).join('');
+  }catch(e){
+    console.error(e);
+    toast('خطا در انتخاب از بانک','err');
+  }
 }
 function openPickModules(bankId){
   currentBankId=bankId;
@@ -1773,7 +1798,6 @@ function applyPickedFromBanks(){ applyPickSelection(); }
 
 initTheme();
 showPage('homePage');
-}
 
 function renderAdminPanel(){
   const box=document.getElementById('adminBtns');
@@ -2660,96 +2684,7 @@ async function openUserStats(username){
 
 /* boot */
 
-let cpRole = null; // user | admin | manager
-function startChangePass(){
-  if(currentUser) cpRole='user';
-  else if(isManager) cpRole='manager';
-  else if(currentAdmin) cpRole='admin';
-  else return;
-  document.getElementById('cpStep1').style.display='';
-  document.getElementById('cpStep2').style.display='none';
-  document.getElementById('cpCurrent').value='';
-  document.getElementById('cpNew').value='';
-  document.getElementById('cpNew2').value='';
-  document.getElementById('cpErr1').style.display='none';
-  document.getElementById('cpErr2').style.display='none';
-  showPage('changePassPage');
-}
-function cancelChangePass(){
-  if(cpRole==='user') showPage('userMainPage');
-  else if(cpRole==='manager') showPage('managerPage');
-  else if(cpRole==='admin') showPage('adminPage');
-  else showPage('homePage');
-}
-async function cpGoStep2(){
-  const cur=document.getElementById('cpCurrent').value;
-  const err=document.getElementById('cpErr1');
-  err.style.display='block';
-  try{
-    if(cpRole==='user'){
-      if(!currentUser || cur!==currentUser.password){ err.textContent='رمز فعلی اشتباه است'; return; }
-    } else if(cpRole==='admin'){
-      if(!currentAdmin || cur!==currentAdmin.password){ err.textContent='رمز فعلی اشتباه است'; return; }
-    } else if(cpRole==='manager'){
-      const mp=await getManagerPass();
-      if(cur!==mp){ err.textContent='رمز فعلی اشتباه است'; return; }
-    }
-    err.style.display='none';
-    document.getElementById('cpStep1').style.display='none';
-    document.getElementById('cpStep2').style.display='';
-  }catch(e){ err.textContent='خطا'; }
-}
-async function cpSave(){
-  const n=document.getElementById('cpNew').value;
-  const n2=document.getElementById('cpNew2').value;
-  const err=document.getElementById('cpErr2');
-  err.style.display='block';
-  if(!n || n.length<4){ err.textContent='رمز جدید حداقل ۴ کاراکتر'; return; }
-  if(n!==n2){ err.textContent='رمز و تکرار یکسان نیست'; return; }
-  try{
-    if(cpRole==='user'){
-      await sbUpdate('exam_users','username=eq.'+encodeURIComponent(currentUser.username),{ password:n });
-      currentUser.password=n;
-    } else if(cpRole==='admin'){
-      await sbUpdate('exam_admins','name=eq.'+encodeURIComponent(currentAdmin.name),{ password:n });
-      currentAdmin.password=n;
-    } else if(cpRole==='manager'){
-      await setManagerPass(n);
-    }
-    toast('رمز تغییر کرد','ok');
-    cancelChangePass();
-  }catch(e){ console.error(e); err.textContent='خطا در ذخیره'; }
-}
-async function openMyStats(){
-  if(!currentUser) return;
-  showPage('myStatsPage');
-  const body=document.getElementById('myStatsBody');
-  body.innerHTML='<div class="loading">...</div>';
-  try{
-    let rows=await sbGet('exam_results','select=*&username=eq.'+encodeURIComponent(currentUser.username)+'&order=finished_at.desc');
-    let liveIds={};
-    try{ const exams=await sbGet('exams','select=id'); (exams||[]).forEach(function(e){ liveIds[String(e.id)]=1; }); }catch(e){}
-    rows=(rows||[]).filter(function(r){ return liveIds[String(r.exam_id)]; });
-    if(!rows.length){ body.innerHTML='<div class="empty">هنوز آزمونی نداده‌اید</div>'; return; }
-    let c=0,w=0,u=0;
-    rows.forEach(r=>{ c+=r.correct|0; w+=r.wrong|0; u+=r.unanswered|0; });
-    let html=`<div class="card" style="margin-bottom:12px">
-      <div class="meta">تعداد آزمون: <b>${rows.length}</b></div>
-      <div class="meta">مجموع درست: <b class="pct-ok">${c}</b> · غلط: <b class="pct-fail">${w}</b> · بی‌پاسخ: <b>${u}</b></div>
-    </div>`;
-    html += rows.map(r=>{
-      const pct=r.percent!=null?r.percent:'—';
-      const ok=r.passed===true;
-      return `<div class="card">
-        <h4>${escapeHtml(r.exam_name||('#'+r.exam_id))}</h4>
-        <div class="meta">${fmtTime(r.finished_at)}</div>
-        <div class="meta">${pct}٪ · درست ${r.correct} · غلط ${r.wrong} · بی‌پاسخ ${r.unanswered}</div>
-        <div class="meta" style="color:${ok?'var(--ok)':'var(--err)'}">${ok?'قبول':'مردود'}</div>
-      </div>`;
-    }).join('');
-    body.innerHTML=html;
-  }catch(e){ body.innerHTML='<div class="empty">خطا</div>'; }
-}
+
 
 
 function forceCloseLayers(){
@@ -2799,9 +2734,9 @@ function selectExamType(val){
 }
 
 function canBanks(){
-  if(isManager) return {view:true,edit:true};
-  const p=currentAdmin&&currentAdmin.perms||{};
-  return {view:!!(p.viewBanks||p.editBanks), edit:!!p.editBanks};
+  if(typeof isManager!=='undefined' && isManager) return {view:true,edit:true};
+  const p=(currentAdmin&&currentAdmin.perms)||{};
+  return {view:!!(p.viewBanks||p.editBanks||p.exams), edit:!!p.editBanks};
 }
 
 
