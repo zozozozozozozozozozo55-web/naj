@@ -338,6 +338,46 @@ body.dark .exam-card-passed{background:rgba(52,211,153,.1)!important}
 .pick-q input{width:18px;height:18px;margin-top:3px;flex-shrink:0;accent-color:var(--primary)}
 .pick-q .pt{font-size:13px;flex:1;min-width:0}
 .pick-q.selected{border-color:var(--primary);background:rgba(91,76,219,.06)}
+
+.bk-card{
+  position:relative;background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:14px 14px 48px;min-height:88px;cursor:pointer;
+  box-shadow:var(--shadow)
+}
+.bk-card .bk-title{
+  font-weight:700;font-size:15px;text-align:right;padding-left:8px;line-height:1.4
+}
+.bk-card .bk-meta{font-size:11px;color:var(--muted);margin-top:4px;text-align:right}
+.bk-card .bk-bot{
+  position:absolute;left:12px;right:12px;bottom:10px;
+  display:flex;align-items:center;justify-content:space-between;pointer-events:none
+}
+.bk-card .bk-bot > *{pointer-events:auto}
+.bk-card .bk-bot-left{display:flex;align-items:center;gap:8px}
+.sec-card{
+  position:relative;background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:14px 14px 48px;min-height:84px
+}
+.sec-card .sec-title{font-weight:700;font-size:14px;text-align:right}
+.sec-card .sec-meta{font-size:11px;color:var(--muted);margin-top:4px;text-align:right}
+.sec-card .sec-bot{
+  position:absolute;left:12px;right:12px;bottom:10px;
+  display:flex;align-items:center;justify-content:space-between
+}
+.sec-card .sec-bot-left{display:flex;align-items:center;gap:8px}
+.save-sticky{
+  position:fixed;bottom:0;left:0;right:0;z-index:50;
+  padding:12px 16px max(12px,env(safe-area-inset-bottom));
+  background:color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter:blur(10px);border-top:1px solid var(--border);
+  display:none;justify-content:center;gap:12px;align-items:center
+}
+.save-sticky.show{display:flex}
+.save-sticky .cnt{font-size:13px;color:var(--muted);min-width:90px;text-align:center}
+.save-sticky .btn{max-width:280px;flex:1}
+.page.has-sticky{padding-bottom:88px}
+.q-en-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--muted)}
+
 </style>
 </head>
 <body>
@@ -442,16 +482,14 @@ body.dark .exam-card-passed{background:rgba(52,211,153,.1)!important}
 </div>
 
 <div class="page top" id="editBankPage">
-  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="openQuestionBanks()">برگشت</button>
-  <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center" id="editBankTitle">ویرایش بانک</h2>
-  <div class="panel" style="margin:0 auto">
-    <div class="input-group"><label>نام بانک</label><input type="text" id="editBankName"></div>
-    <div class="row-between" style="margin-bottom:12px"><span>فعال</span>
+  <button type="button" class="btn btn-secondary btn-sm back-corner" id="editBankBack" onclick="openQuestionBanks()">برگشت</button>
+  <h2 style="display:none" id="editBankTitle">ویرایش بخش</h2>
+  <div class="panel" style="margin:48px auto 0">
+    <div class="input-group"><label>نام بخش</label><input type="text" id="editBankName"></div>
+    <div class="row-between" style="margin-bottom:12px"><span>فعال بودن بخش</span>
       <label class="switch"><input type="checkbox" id="editBankEnabled" checked><span class="slider"></span></label>
     </div>
     <div id="editBankQuestions"></div>
-    <button class="btn btn-secondary" style="margin-bottom:10px" onclick="addBankQuestion()">＋ افزودن سوال</button>
-    <button class="btn btn-primary" onclick="saveBankEdit()">ذخیره بانک</button>
   </div>
 </div>
 
@@ -467,11 +505,19 @@ body.dark .exam-card-passed{background:rgba(52,211,153,.1)!important}
 
 <div class="page top" id="bankModulesPage">
   <button type="button" class="btn btn-secondary btn-sm back-corner" id="bankModulesBack" onclick="openQuestionBanks()">برگشت</button>
-  <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center" id="bankModulesTitle">ماژول‌ها</h2>
-  <div style="max-width:560px;margin:0 auto 12px;width:100%" id="modulesAddWrap">
-    <button class="btn btn-primary" onclick="createModule()">＋ افزودن ماژول / بخش</button>
+  <div style="max-width:560px;margin:48px auto 12px;width:100%;padding:0 4px">
+    <div class="input-group" style="margin-bottom:12px">
+      <label>نام بانک</label>
+      <input type="text" id="bankNameInput" oninput="markBankDirty()">
+    </div>
+    <div id="modulesAddWrap" style="margin-bottom:10px">
+      <button class="btn btn-primary" onclick="createModule()">＋ افزودن بخش</button>
+    </div>
   </div>
   <div class="list" id="modulesList" style="max-width:560px;margin:0 auto"></div>
+  <div class="save-sticky" id="bankSaveSticky">
+    <button class="btn btn-primary" onclick="saveBankNameAndStay()">ذخیره نام بانک</button>
+  </div>
 </div>
 
 <div class="page top" id="pickBankListPage">
@@ -901,6 +947,14 @@ function showPage(id){
   if(night) night.classList.toggle('hidden', !nightPages[id]);
   updateMenuForPage(id);
   closeMenu();
+  try{
+    const g=document.getElementById('pickSaveStickyGlobal');
+    if(g){
+      const pickIds={pickBankListPage:1,pickModulePage:1,pickQuestionsPage:1};
+      if(!pickIds[id] || !(window.pickSelection&&pickSelection.length)) g.classList.remove('show');
+      else if(pickIds[id] && pickSelection.length) g.classList.add('show');
+    }
+  }catch(e){}
 }
 function updateMenuForPage(id){
   const menu=document.getElementById("mainMenu");
@@ -1281,6 +1335,7 @@ function setBanks(banks){
 function countBankQs(b){
   return (b.modules||[]).reduce(function(s,m){ return s+((m.questions||[]).length); },0);
 }
+
 function openQuestionBanks(){
   const c=canBanks();
   if(!c.view) return;
@@ -1293,23 +1348,26 @@ function openQuestionBanks(){
   list.innerHTML=banks.map(function(b){
     const n=countBankQs(b);
     const mods=(b.modules||[]).length;
-    return `<div class="bank-box">
-      <div>
-        <div class="bname" onclick="openBankModules('${b.id}')">${escapeHtml(b.name)}</div>
-        <div class="bmeta">${mods} ماژول · ${n} سوال · ${b.enabled!==false?'فعال':'غیرفعال'}</div>
-      </div>
-      <div class="bactions">
-        ${c.edit?`<label class="switch" title="فعال"><input type="checkbox" ${b.enabled!==false?'checked':''} onchange="toggleBankEnabled('${b.id}',this.checked)"><span class="slider"></span></label>
-        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();renameBank('${b.id}')">ویرایش</button>
-        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteBank('${b.id}')">حذف</button>`:
-        `<button class="btn btn-secondary btn-sm" onclick="openBankModules('${b.id}')">مشاهده</button>`}
+    const en=b.enabled!==false;
+    return `<div class="bk-card" data-id="${b.id}" onclick="onBankCardClick(event,'${b.id}')">
+      <div class="bk-title">${escapeHtml(b.name)}</div>
+      <div class="bk-meta">${mods} بخش · ${n} سوال</div>
+      <div class="bk-bot">
+        <div class="bk-bot-left">
+          ${c.edit?`<label class="switch" onclick="event.stopPropagation()"><input type="checkbox" ${en?'checked':''} onchange="toggleBankEnabled('${b.id}',this.checked)"><span class="slider"></span></label>`:''}
+        </div>
+        ${c.edit?`<button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteBank('${b.id}')">حذف</button>`:''}
       </div>
     </div>`;
   }).join('');
 }
+function onBankCardClick(ev, id){
+  if(ev.target.closest('button,label,input,.switch,.slider')) return;
+  openBankModules(id);
+}
 function createQuestionBank(){
   if(!canBanks().edit) return;
-  const name=prompt('نام بانک سوال (مثلاً B1):');
+  const name=prompt('نام بانک سوال:');
   if(!name||!name.trim()) return;
   const banks=getBanks();
   const id='bank_'+Date.now();
@@ -1322,20 +1380,9 @@ function toggleBankEnabled(id, on){
   const b=banks.find(x=>x.id===id);
   if(b){ b.enabled=!!on; setBanks(banks); openQuestionBanks(); }
 }
-function renameBank(id){
-  if(!canBanks().edit) return;
-  const banks=getBanks();
-  const b=banks.find(x=>x.id===id);
-  if(!b) return;
-  const name=prompt('نام جدید بانک:', b.name);
-  if(!name||!name.trim()) return;
-  b.name=name.trim();
-  setBanks(banks);
-  openQuestionBanks();
-}
 async function deleteBank(id){
   if(!canBanks().edit) return;
-  const ok=await confirmModal('حذف بانک','این بانک و تمام ماژول‌هایش حذف شود؟','حذف');
+  const ok=await confirmModal('حذف بانک','این بانک و تمام بخش‌هایش حذف شود؟','حذف');
   if(!ok) return;
   setBanks(getBanks().filter(b=>b.id!==id));
   toast('حذف شد','ok');
@@ -1344,34 +1391,71 @@ async function deleteBank(id){
 
 let currentBankId=null;
 let currentModuleId=null;
+let bankNameDirty=false;
+let sectionDirty=false;
 let pickMode=false;
-let pickSelection=[]; // {text,options,correct,enabled, from}
+let pickSelection=[];
+
+function markBankDirty(){
+  bankNameDirty=true;
+  const el=document.getElementById('bankSaveSticky');
+  if(el) el.classList.add('show');
+  document.getElementById('bankModulesPage')&&document.getElementById('bankModulesPage').classList.add('has-sticky');
+}
+function saveBankNameAndStay(){
+  if(!canBanks().edit||!currentBankId) return;
+  const banks=getBanks();
+  const b=banks.find(x=>x.id===currentBankId);
+  if(!b) return;
+  const name=(document.getElementById('bankNameInput').value||'').trim();
+  if(name) b.name=name;
+  setBanks(banks);
+  bankNameDirty=false;
+  const el=document.getElementById('bankSaveSticky');
+  if(el) el.classList.remove('show');
+  document.getElementById('bankModulesPage').classList.remove('has-sticky');
+  toast('ذخیره شد','ok');
+  openBankModules(currentBankId);
+}
 
 function openBankModules(bankId){
   pickMode=false;
   currentBankId=bankId;
+  bankNameDirty=false;
   const c=canBanks();
   const b=getBanks().find(x=>x.id===bankId);
   if(!b) return;
-  document.getElementById('bankModulesTitle').textContent=b.name;
+  const nameInp=document.getElementById('bankNameInput');
+  if(nameInp){
+    nameInp.value=b.name||'';
+    nameInp.disabled=!c.edit;
+  }
+  const sticky=document.getElementById('bankSaveSticky');
+  if(sticky) sticky.classList.remove('show');
+  document.getElementById('bankModulesPage').classList.remove('has-sticky');
   document.getElementById('bankModulesBack').setAttribute('onclick',"openQuestionBanks()");
   const wrap=document.getElementById('modulesAddWrap');
   if(wrap) wrap.style.display=c.edit?'':'none';
   const list=document.getElementById('modulesList');
   const mods=b.modules||[];
-  if(!mods.length){ list.innerHTML='<div class="empty">ماژولی نیست — افزودن ماژول را بزنید</div>'; showPage('bankModulesPage'); return; }
+  if(!mods.length){
+    list.innerHTML='<div class="empty">بخشی نیست — افزودن بخش را بزنید</div>';
+    showPage('bankModulesPage');
+    return;
+  }
   list.innerHTML=mods.map(function(m){
     const n=(m.questions||[]).length;
-    return `<div class="bank-box">
-      <div>
-        <div class="bname" onclick="openEditModule('${bankId}','${m.id}')">${escapeHtml(m.name)}</div>
-        <div class="bmeta">${n} سوال · ${m.enabled!==false?'فعال':'غیرفعال'}</div>
-      </div>
-      <div class="bactions">
-        ${c.edit?`<label class="switch"><input type="checkbox" ${m.enabled!==false?'checked':''} onchange="toggleModuleEnabled('${bankId}','${m.id}',this.checked)"><span class="slider"></span></label>
-        <button class="btn btn-secondary btn-sm" onclick="openEditModule('${bankId}','${m.id}')">ویرایش</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteModule('${bankId}','${m.id}')">حذف</button>`:
-        `<button class="btn btn-secondary btn-sm" onclick="openEditModule('${bankId}','${m.id}')">مشاهده</button>`}
+    const en=m.enabled!==false;
+    return `<div class="sec-card">
+      <div class="sec-title">${escapeHtml(m.name)}</div>
+      <div class="sec-meta">${n} سوال</div>
+      <div class="sec-bot">
+        <div class="sec-bot-left">
+          ${c.edit?`<label class="switch"><input type="checkbox" ${en?'checked':''} onchange="toggleModuleEnabled('${bankId}','${m.id}',this.checked)"><span class="slider"></span></label>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="openEditModule('${bankId}','${m.id}')">ویرایش</button>`:
+          `<button type="button" class="btn btn-secondary btn-sm" onclick="openEditModule('${bankId}','${m.id}')">مشاهده</button>`}
+        </div>
+        ${c.edit?`<button type="button" class="btn btn-danger btn-sm" onclick="deleteModule('${bankId}','${m.id}')">حذف</button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -1379,7 +1463,7 @@ function openBankModules(bankId){
 }
 function createModule(){
   if(!canBanks().edit||!currentBankId) return;
-  const name=prompt('نام ماژول / بخش:');
+  const name=prompt('نام بخش:');
   if(!name||!name.trim()) return;
   const banks=getBanks();
   const b=banks.find(x=>x.id===currentBankId);
@@ -1398,7 +1482,7 @@ function toggleModuleEnabled(bankId, modId, on){
 }
 async function deleteModule(bankId, modId){
   if(!canBanks().edit) return;
-  const ok=await confirmModal('حذف ماژول','این ماژول حذف شود؟','حذف');
+  const ok=await confirmModal('حذف بخش','این بخش حذف شود؟','حذف');
   if(!ok) return;
   const banks=getBanks();
   const b=banks.find(x=>x.id===bankId);
@@ -1406,23 +1490,148 @@ async function deleteModule(bankId, modId){
   setBanks(banks);
   openBankModules(bankId);
 }
+
+function markSectionDirty(){
+  sectionDirty=true;
+  const el=document.getElementById('sectionSaveSticky');
+  if(el) el.classList.add('show');
+  const pg=document.getElementById('editBankPage');
+  if(pg) pg.classList.add('has-sticky');
+}
+
 function openEditModule(bankId, modId){
   const c=canBanks();
   if(!c.view) return;
   currentBankId=bankId; currentModuleId=modId;
+  sectionDirty=false;
   const b=getBanks().find(x=>x.id===bankId);
   const m=b&&(b.modules||[]).find(x=>x.id===modId);
   if(!m) return;
   editingBankId = bankId+'::'+modId;
-  document.getElementById('editBankTitle').textContent=m.name;
-  document.getElementById('editBankName').value=m.name;
-  document.getElementById('editBankEnabled').checked=m.enabled!==false;
-  document.getElementById('editBankName').disabled=!c.edit;
-  document.getElementById('editBankEnabled').disabled=!c.edit;
-  renderBankQuestionEditors(m.questions||[], c.edit);
+  // reuse editBankPage
+  let title=document.getElementById('editBankTitle');
+  if(title) title.style.display='none';
+  let nameLab=document.querySelector('#editBankPage .input-group label');
+  // rebuild header area
+  const panel=document.querySelector('#editBankPage .panel');
+  if(panel && !document.getElementById('sectionNameInput')){
+    // inject sticky once
+  }
+  // set fields
+  const nameEl=document.getElementById('editBankName');
+  if(nameEl){
+    nameEl.value=m.name||'';
+    nameEl.disabled=!c.edit;
+    nameEl.oninput=markSectionDirty;
+  }
+  const enEl=document.getElementById('editBankEnabled');
+  if(enEl){
+    enEl.checked=m.enabled!==false;
+    enEl.disabled=!c.edit;
+    enEl.onchange=markSectionDirty;
+  }
+  // label
+  const labels=document.querySelectorAll('#editBankPage .input-group label');
+  if(labels[0]) labels[0].textContent='نام بخش';
+  renderSectionQuestions(m.questions||[], c.edit);
+  // sticky save
+  let sticky=document.getElementById('sectionSaveSticky');
+  if(!sticky){
+    sticky=document.createElement('div');
+    sticky.id='sectionSaveSticky';
+    sticky.className='save-sticky';
+    sticky.innerHTML='<button type="button" class="btn btn-primary" onclick="saveSectionEdit()">ذخیره</button>';
+    document.getElementById('editBankPage').appendChild(sticky);
+  }
+  sticky.classList.remove('show');
+  document.getElementById('editBankPage').classList.remove('has-sticky');
+  // hide default save button at bottom of panel if any
+  const saveBtns=document.querySelectorAll('#editBankPage .panel > .btn-primary');
+  saveBtns.forEach(function(btn){
+    if(btn.textContent.indexOf('ذخیره')>=0) btn.style.display='none';
+  });
+  // back goes to modules
+  const back=document.getElementById('editBankBack')||document.querySelector('#editBankPage .back-corner');
+  if(back) back.setAttribute('onclick',"openBankModules('"+bankId+"')");
   showPage('editBankPage');
 }
-function saveBankEdit(){
+
+function renderSectionQuestions(qs, editable){
+  const box=document.getElementById('editBankQuestions');
+  const can=editable!==false && canBanks().edit;
+  box.innerHTML=(qs||[]).map(function(q,i){
+    const opts=q.options||['','',''];
+    while(opts.length<3) opts.push('');
+    const qen=q.enabled!==false;
+    const optHtml=opts.map(function(o,j){
+      return `<div class="radio-opt">
+        <input type="radio" name="bq_${i}" value="${j}" ${q.correct===j?'checked':''} ${can?'':'disabled'} onchange="markSectionDirty()">
+        <input type="text" data-bopt="${i}_${j}" value="${escapeHtml(o)}" dir="${dirAttr(o)}" ${can?'':'readonly'} oninput="markSectionDirty()">
+      </div>`;
+    }).join('');
+    return `<div class="q-edit ${qen?'':'disabled-q'}" data-bi="${i}">
+      <div class="row-between" style="margin-bottom:6px">
+        <span style="font-size:12px;color:var(--muted)">سوال ${i+1}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${can?`<span style="font-size:11px;color:var(--muted)">${qen?'فعال':'غیرفعال'}</span>
+          <label class="switch"><input type="checkbox" data-qen="${i}" ${qen?'checked':''} onchange="markSectionDirty()"><span class="slider"></span></label>
+          <button type="button" class="btn btn-danger btn-sm" onclick="removeBankQ(${i});markSectionDirty()">حذف</button>`:''}
+        </div>
+      </div>
+      <div class="input-group"><label>متن سوال</label>
+        <textarea data-btxt="${i}" dir="${dirAttr(q.text||'')}" ${can?'':'readonly'} oninput="markSectionDirty();autoGrowArea(this)">${escapeHtml(q.text||'')}</textarea>
+      </div>
+      <div class="hint" style="margin-bottom:6px">تیک = پاسخ صحیح</div>
+      ${optHtml}
+    </div>`;
+  }).join('') || '<div class="empty">سوالی نیست</div>';
+  if(can){
+    const add=document.createElement('button');
+    add.type='button'; add.className='btn btn-secondary'; add.style.marginTop='8px';
+    add.textContent='＋ افزودن سوال';
+    add.onclick=function(){ addBankQuestion(); markSectionDirty(); };
+    // remove previous add if any outside
+    box.appendChild(add);
+  }
+  box.querySelectorAll('textarea').forEach(function(ta){ if(typeof autoGrowArea==='function') autoGrowArea(ta); });
+}
+
+function collectBankQuestions(){
+  const box=document.getElementById('editBankQuestions');
+  return [...box.querySelectorAll('.q-edit')].map(function(block){
+    const text=(block.querySelector('textarea')||{}).value||'';
+    const opts=[...block.querySelectorAll('input[data-bopt]')].map(function(i){ return i.value.trim(); });
+    const radio=block.querySelector('input[type=radio]:checked');
+    let correct=radio?parseInt(radio.value,10):0;
+    const enEl=block.querySelector('input[data-qen]');
+    const enabled=enEl?!!enEl.checked:true;
+    const kept=[];
+    let newCorrect=0;
+    opts.forEach(function(o,idx){
+      if(!o) return;
+      if(idx===correct) newCorrect=kept.length;
+      kept.push(o);
+    });
+    return {
+      text: text.trim(),
+      options: kept.length?kept:opts,
+      correct: kept.length?newCorrect:correct,
+      enabled: enabled
+    };
+  });
+}
+function addBankQuestion(){
+  if(!canBanks().edit) return;
+  const qs=collectBankQuestions();
+  qs.push({ text:'', options:['','',''], correct:0, enabled:true });
+  renderSectionQuestions(qs, true);
+}
+function removeBankQ(i){
+  const qs=collectBankQuestions();
+  qs.splice(i,1);
+  renderSectionQuestions(qs, true);
+}
+function saveSectionEdit(){
   if(!canBanks().edit) return;
   const parts=String(editingBankId||'').split('::');
   const bankId=parts[0], modId=parts[1];
@@ -1430,31 +1639,34 @@ function saveBankEdit(){
   const b=banks.find(x=>x.id===bankId);
   const m=b&&(b.modules||[]).find(x=>x.id===modId);
   if(!m){ toast('خطا','err'); return; }
-  m.name=document.getElementById('editBankName').value.trim()||m.name;
+  m.name=(document.getElementById('editBankName').value||'').trim()||m.name;
   m.enabled=document.getElementById('editBankEnabled').checked;
-  m.questions=collectBankQuestions();
+  m.questions=collectBankQuestions().filter(function(q){ return q.text; });
   setBanks(banks);
+  sectionDirty=false;
+  const sticky=document.getElementById('sectionSaveSticky');
+  if(sticky) sticky.classList.remove('show');
+  document.getElementById('editBankPage').classList.remove('has-sticky');
   toast('ذخیره شد','ok');
   openBankModules(bankId);
 }
-// keep renderBankQuestionEditors, collectBankQuestions, addBankQuestion, removeBankQ from before - they still work
+function saveBankEdit(){ saveSectionEdit(); }
+
 
 /* ===== انتخاب از بانک برای آزمون ===== */
+
 function openPickFromBank(){
   pickMode=true;
-  // keep pickSelection across banks
   showPage('pickBankListPage');
   updatePickSaveBars();
   const list=document.getElementById('pickBankList2');
-  const banks=getBanks().filter(b=>b.enabled!==false);
+  const banks=getBanks().filter(function(b){ return b.enabled!==false; });
   list.innerHTML=banks.map(function(b){
     const n=countBankQs(b);
-    return `<div class="bank-box" style="cursor:pointer" onclick="openPickModules('${b.id}')">
-      <div>
-        <div class="bname">${escapeHtml(b.name)}</div>
-        <div class="bmeta">${(b.modules||[]).length} ماژول · ${n} سوال</div>
-      </div>
-      <div class="bactions"><button class="btn btn-secondary btn-sm">انتخاب</button></div>
+    const mods=(b.modules||[]).filter(function(m){ return m.enabled!==false; }).length;
+    return `<div class="bk-card" onclick="openPickModules('${b.id}')">
+      <div class="bk-title">${escapeHtml(b.name)}</div>
+      <div class="bk-meta">${mods} بخش فعال · ${n} سوال</div>
     </div>`;
   }).join('') || '<div class="empty">بانک فعالی نیست</div>';
 }
@@ -1464,22 +1676,17 @@ function openPickModules(bankId){
   if(!b) return;
   document.getElementById('pickModuleTitle').textContent=b.name;
   const list=document.getElementById('pickModuleList');
-  const mods=(b.modules||[]).filter(m=>m.enabled!==false);
+  const mods=(b.modules||[]).filter(function(m){ return m.enabled!==false; });
   list.innerHTML=mods.map(function(m){
-    return `<div class="bank-box" style="cursor:pointer" onclick="openPickQuestions('${bankId}','${m.id}')">
-      <div>
-        <div class="bname">${escapeHtml(m.name)}</div>
-        <div class="bmeta">${(m.questions||[]).length} سوال</div>
-      </div>
-      <div class="bactions"><button class="btn btn-secondary btn-sm">سوالات</button></div>
+    return `<div class="bk-card" onclick="openPickQuestions('${bankId}','${m.id}')">
+      <div class="bk-title">${escapeHtml(m.name)}</div>
+      <div class="bk-meta">${(m.questions||[]).filter(function(q){return q&&q.enabled!==false;}).length} سوال</div>
     </div>`;
-  }).join('') || '<div class="empty">ماژول فعالی نیست</div>';
+  }).join('') || '<div class="empty">بخش فعالی نیست</div>';
   showPage('pickModulePage');
   updatePickSaveBars();
 }
-function backPickModules(){
-  openPickModules(currentBankId);
-}
+function backPickModules(){ openPickModules(currentBankId); }
 function openPickQuestions(bankId, modId){
   currentBankId=bankId; currentModuleId=modId;
   const b=getBanks().find(x=>x.id===bankId);
@@ -1488,20 +1695,17 @@ function openPickQuestions(bankId, modId){
   document.getElementById('pickQTitle').textContent=m.name;
   document.getElementById('pickQBack').setAttribute('onclick',"openPickModules('"+bankId+"')");
   const list=document.getElementById('pickQList');
-  const qs=(m.questions||[]).filter(q=>q && q.enabled!==false);
+  const qs=(m.questions||[]).filter(function(q){ return q && q.enabled!==false; });
+  window._pickQs=qs;
   list.innerHTML=qs.map(function(q,i){
-    const key=bankId+'|'+modId+'|'+i+'|'+String(q.text).slice(0,40);
-    const selected = pickSelection.some(function(s){ return s._key===key; });
+    const key=bankId+'|'+modId+'|'+i;
+    const selected=pickSelection.some(function(s){ return s._key===key; });
     const dir=dirAttr(q.text);
     return `<label class="pick-q ${selected?'selected':''}">
-      <input type="checkbox" ${selected?'checked':''} onchange="togglePickQ(this,'${key.replace(/'/g,"\\'")}', ${i})">
+      <input type="checkbox" data-pkey="${key}" ${selected?'checked':''} onchange="togglePickQ(this, ${i})">
       <span class="pt" dir="${dir}" style="text-align:${dir==='ltr'?'left':'right'}">${escapeHtml(q.text)}</span>
     </label>`;
   }).join('') || '<div class="empty">سوالی نیست</div>';
-  // store questions on element for retrieve
-  list.dataset.bank=bankId;
-  list.dataset.mod=modId;
-  window._pickQs = qs;
   showPage('pickQuestionsPage');
   updatePickSaveBars();
 }
@@ -1512,13 +1716,7 @@ function togglePickQ(el, idx){
   const key=el.getAttribute('data-pkey')||('k'+idx);
   if(el.checked){
     if(!pickSelection.some(function(s){ return s._key===key; })){
-      pickSelection.push({
-        _key:key,
-        text:q.text,
-        options:(q.options||[]).slice(),
-        correct:q.correct|0,
-        enabled:true
-      });
+      pickSelection.push({ _key:key, text:q.text, options:(q.options||[]).slice(), correct:q.correct|0, enabled:true });
     }
     el.closest('.pick-q').classList.add('selected');
   } else {
@@ -1529,14 +1727,27 @@ function togglePickQ(el, idx){
 }
 function updatePickSaveBars(){
   const n=pickSelection.length;
-  const bar=document.getElementById('pickSaveBar');
+  // fixed bar on pick questions and bank list pages
+  let bar=document.getElementById('pickSaveStickyGlobal');
+  if(!bar){
+    bar=document.createElement('div');
+    bar.id='pickSaveStickyGlobal';
+    bar.className='save-sticky';
+    bar.innerHTML='<span class="cnt">انتخاب: <b id="pickCountGlobal">0</b></span><button type="button" class="btn btn-primary" onclick="applyPickSelection()">ذخیره</button>';
+    document.body.appendChild(bar);
+  }
+  const c=document.getElementById('pickCountGlobal');
+  if(c) c.textContent=n;
+  const onPick = document.getElementById('pickQuestionsPage')&&document.getElementById('pickQuestionsPage').classList.contains('active')
+    || document.getElementById('pickModulePage')&&document.getElementById('pickModulePage').classList.contains('active')
+    || document.getElementById('pickBankListPage')&&document.getElementById('pickBankListPage').classList.contains('active');
+  if(n>0 && onPick) bar.classList.add('show');
+  else bar.classList.remove('show');
+  // also old bars
+  const bar1=document.getElementById('pickSaveBar');
   const bar2=document.getElementById('pickSaveBar2');
-  const c1=document.getElementById('pickCount');
-  const c2=document.getElementById('pickCount2');
-  if(c1) c1.textContent=n;
-  if(c2) c2.textContent=n;
-  if(bar) bar.style.display=n>0?'block':'none';
-  if(bar2) bar2.style.display=n>0?'block':'none';
+  if(bar1) bar1.style.display='none';
+  if(bar2) bar2.style.display='none';
 }
 function applyPickSelection(){
   if(!pickSelection.length){ toast('سوالی انتخاب نشده','err'); return; }
@@ -1548,10 +1759,14 @@ function applyPickSelection(){
   const n=added.length;
   pickSelection=[];
   updatePickSaveBars();
+  const g=document.getElementById('pickSaveStickyGlobal');
+  if(g) g.classList.remove('show');
   showPage('editExamPage');
   toast(n+' سوال به آزمون اضافه شد','ok');
 }
 function applyPickedFromBanks(){ applyPickSelection(); }
+
+
 
 
 
@@ -2588,159 +2803,7 @@ function canBanks(){
   const p=currentAdmin&&currentAdmin.perms||{};
   return {view:!!(p.viewBanks||p.editBanks), edit:!!p.editBanks};
 }
-function openQuestionBanks(){
-  const c=canBanks();
-  if(!c.view) return;
-  showPage('banksPage');
-  const wrap=document.getElementById('banksAddWrap');
-  if(wrap) wrap.style.display=c.edit?'':'none';
-  const list=document.getElementById('banksList');
-  const banks=getBanks();
-  if(!banks.length){ list.innerHTML='<div class="empty">بانکی نیست</div>'; return; }
-  list.innerHTML=banks.map(function(b){
-    const n=(b.questions||[]).length;
-    return `<div class="admin-row" data-bank="${escapeHtml(b.id)}">
-      <span class="an">${escapeHtml(b.name)}</span>
-      <span class="u-meta">${n} سوال · ${b.enabled!==false?'فعال':'غیرفعال'}</span>
-      ${c.edit?`<label class="switch"><input type="checkbox" ${b.enabled!==false?'checked':''} onchange="toggleBankEnabled('${b.id}',this.checked)"><span class="slider"></span></label>
-      <button class="btn btn-secondary btn-sm" onclick="openEditBank('${b.id}')">ویرایش</button>
-      <button class="btn btn-danger btn-sm" onclick="deleteBank('${b.id}')">حذف</button>`:
-      `<button class="btn btn-secondary btn-sm" onclick="openEditBank('${b.id}')">مشاهده</button>`}
-    </div>`;
-  }).join('');
-}
-function createQuestionBank(){
-  if(!canBanks().edit) return;
-  const name=prompt('نام بانک سوال:');
-  if(!name||!name.trim()) return;
-  const banks=getBanks();
-  const id='b_'+Date.now();
-  banks.push({ id:id, name:name.trim(), enabled:true, questions:[] });
-  setBanks(banks);
-  openEditBank(id);
-}
-function toggleBankEnabled(id, on){
-  const banks=getBanks();
-  const b=banks.find(x=>x.id===id);
-  if(b){ b.enabled=!!on; setBanks(banks); openQuestionBanks(); }
-}
-async function deleteBank(id){
-  if(!canBanks().edit) return;
-  const ok=await confirmModal('حذف بانک','این بانک سوال حذف شود؟','حذف');
-  if(!ok) return;
-  setBanks(getBanks().filter(b=>b.id!==id));
-  toast('حذف شد','ok');
-  openQuestionBanks();
-}
-let editingBankId=null;
-function openEditBank(id){
-  const c=canBanks();
-  if(!c.view) return;
-  editingBankId=id;
-  const b=getBanks().find(x=>x.id===id);
-  if(!b) return;
-  document.getElementById('editBankTitle').textContent=b.name;
-  document.getElementById('editBankName').value=b.name;
-  document.getElementById('editBankEnabled').checked=b.enabled!==false;
-  document.getElementById('editBankName').disabled=!c.edit;
-  document.getElementById('editBankEnabled').disabled=!c.edit;
-  renderBankQuestionEditors(b.questions||[], c.edit);
-  showPage('editBankPage');
-}
-function renderBankQuestionEditors(qs, editable){
-  const box=document.getElementById('editBankQuestions');
-  const can=editable!==false && canBanks().edit;
-  box.innerHTML=(qs||[]).map(function(q,i){
-    const opts=q.options||['','',''];
-    while(opts.length<3) opts.push('');
-    const optHtml=opts.map(function(o,j){
-      return `<div class="radio-opt">
-        <input type="radio" name="bq_${i}" value="${j}" ${q.correct===j?'checked':''} ${can?'':'disabled'}>
-        <input type="text" data-bopt="${i}_${j}" value="${escapeHtml(o)}" dir="${dirAttr(o)}" ${can?'':'readonly'}>
-      </div>`;
-    }).join('');
-    return `<div class="q-edit" data-bi="${i}">
-      ${can?`<button type="button" class="btn btn-danger btn-sm rm" onclick="removeBankQ(${i})">حذف</button>`:''}
-      <div class="input-group"><label>سوال ${i+1}</label>
-        <textarea data-btxt="${i}" dir="${dirAttr(q.text||'')}" ${can?'':'readonly'}>${escapeHtml(q.text||'')}</textarea>
-      </div>
-      ${optHtml}
-    </div>`;
-  }).join('') || '<div class="empty">سوالی نیست</div>';
-}
-function collectBankQuestions(){
-  const box=document.getElementById('editBankQuestions');
-  return [...box.querySelectorAll('.q-edit')].map(function(block){
-    const text=(block.querySelector('textarea')||{}).value||'';
-    const opts=[...block.querySelectorAll('input[data-bopt]')].map(i=>i.value.trim()).filter(Boolean);
-    const radio=block.querySelector('input[type=radio]:checked');
-    let correct=radio?parseInt(radio.value,10):0;
-    if(correct>=opts.length) correct=0;
-    return { text:text.trim(), options:opts, correct:correct, enabled:true };
-  }).filter(q=>q.text && q.options.length>=2);
-}
-function addBankQuestion(){
-  if(!canBanks().edit) return;
-  const qs=collectBankQuestions();
-  qs.push({ text:'', options:['','',''], correct:0 });
-  renderBankQuestionEditors(qs, true);
-}
-function removeBankQ(i){
-  const qs=collectBankQuestions();
-  qs.splice(i,1);
-  renderBankQuestionEditors(qs, true);
-}
-function saveBankEdit(){
-  if(!canBanks().edit) return;
-  const banks=getBanks();
-  const b=banks.find(x=>x.id===editingBankId);
-  if(!b) return;
-  b.name=document.getElementById('editBankName').value.trim()||b.name;
-  b.enabled=document.getElementById('editBankEnabled').checked;
-  b.questions=collectBankQuestions();
-  setBanks(banks);
-  toast('ذخیره شد','ok');
-  openQuestionBanks();
-}
 
-function openPickFromBank(){
-  showPage('pickBankPage');
-  const list=document.getElementById('pickBankList');
-  const banks=getBanks().filter(b=>b.enabled!==false);
-  list.innerHTML=banks.map(function(b){
-    const n=(b.questions||[]).length;
-    return `<div class="bank-pick">
-      <div class="row-between"><strong>${escapeHtml(b.name)}</strong><span class="u-meta">${n} سوال</span></div>
-      <div class="input-group" style="margin:8px 0 0"><label>تعداد سوال از این بانک</label>
-        <input type="number" min="0" max="${n}" value="0" data-pick-bank="${b.id}">
-      </div>
-    </div>`;
-  }).join('') || '<div class="empty">بانک فعالی نیست</div>';
-}
-function applyPickedFromBanks(){
-  const inputs=[...document.querySelectorAll('[data-pick-bank]')];
-  const banks=getBanks();
-  let added=[];
-  inputs.forEach(function(inp){
-    const id=inp.getAttribute('data-pick-bank');
-    let cnt=parseInt(inp.value||'0',10);
-    if(cnt<=0) return;
-    const b=banks.find(x=>x.id===id);
-    if(!b) return;
-    const qs=(b.questions||[]).filter(q=>q && q.enabled!==false);
-    // shuffle pick
-    const sh=qs.slice().sort(function(){return Math.random()-0.5;});
-    added=added.concat(sh.slice(0, Math.min(cnt, sh.length)));
-  });
-  if(!added.length){ toast('تعداد را مشخص کنید','err'); return; }
-  const current=collectQuestionsFromEditors();
-  const merged=current.concat(added.map(function(q){
-    return { text:q.text, options:(q.options||[]).slice(), correct:q.correct|0, enabled:true };
-  }));
-  renderQuestionEditors(merged);
-  showPage('editExamPage');
-  toast(added.length+' سوال اضافه شد','ok');
-}
 
 
 initTheme();
