@@ -562,6 +562,55 @@ body.dark .dl-progress-wrap{background:#2a2e3a}
   padding-bottom:4px;border-bottom:1px solid var(--border)
 }
 
+
+/* PDF settings refined UI */
+.pdf-settings-panel input[type=text],
+.pdf-settings-panel input[type=number]{
+  direction:ltr; text-align:left; unicode-bidi:plaintext;
+}
+.pdf-settings-panel .input-group label{text-align:right}
+.pdf-pick{
+  width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--border);
+  background:var(--card);color:var(--text);text-align:right;cursor:pointer;font-size:14px;
+  display:flex;justify-content:space-between;align-items:center
+}
+.pdf-pick-menu{
+  display:none;position:absolute;left:0;right:0;top:110%;z-index:30;
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  box-shadow:var(--shadow);overflow:hidden;animation:popIn .2s ease
+}
+.pdf-pick-menu.open{display:block}
+.pdf-pick-menu button{
+  display:block;width:100%;text-align:right;padding:12px 14px;border:none;
+  background:transparent;color:var(--text);cursor:pointer;font-size:13px
+}
+.pdf-pick-menu button:hover,.pdf-pick-menu button.active{
+  background:rgba(91,76,219,.12);color:var(--primary)
+}
+.pdf-pick-wrap{position:relative}
+.dl-bottom-actions{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-top:10px;gap:8px
+}
+.dl-bottom-actions .btn-danger{min-width:72px}
+.btn-share{
+  width:40px;height:40px;border-radius:10px;border:1px solid var(--border);
+  background:var(--card);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;padding:0;flex-shrink:0
+}
+.btn-share:active{background:rgba(91,76,219,.12)}
+.btn-share svg{width:20px;height:20px;fill:var(--primary2)}
+.settings-row{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;margin-bottom:12px
+}
+.settings-row .s-title{font-weight:700;font-size:14px}
+.settings-row .s-desc{font-size:11px;color:var(--muted);margin-top:3px}
+.logo-size-row{display:flex;align-items:center;gap:12px}
+.logo-size-row input[type=range]{flex:1}
+.logo-size-val{font-size:13px;font-weight:700;min-width:42px;text-align:center;color:var(--primary2)}
+
 </style>
 </head>
 <body>
@@ -776,53 +825,104 @@ body.dark .dl-progress-wrap{background:#2a2e3a}
 
 <!-- PDF SETTINGS -->
 <div class="page top" id="pdfSettingsPage">
-  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="openManageExams()">برگشت</button>
+  <button type="button" class="btn btn-secondary btn-sm back-corner" id="pdfSettingsBackBtn" onclick="onPdfSettingsBack()">برگشت</button>
   <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center">تنظیمات دانلود PDF</h2>
   <div class="pdf-settings-panel panel">
     <div class="section-label">اطلاعات سربرگ</div>
-    <div class="input-group"><label>نام آزمون (Exam Name)</label><input type="text" id="pdfExamName"></div>
-    <div class="input-group"><label>نوع آزمون (Exam Type)</label>
-      <select id="pdfExamType">
-        <option value="EXAM">EXAM</option>
-        <option value="MOCK EXAM">MOCK EXAM</option>
-        <option value="EXAM + MOCK EXAM">EXAM + MOCK EXAM</option>
-      </select>
+    <div class="input-group"><label>عنوان اصلی برگه (Header Title)</label>
+      <input type="text" id="pdfHeaderTitle" value="AIRCRAFT MAINTENANCE EXAMINATION" dir="ltr" style="direction:ltr;text-align:left">
     </div>
-    <div class="input-group"><label>سطح (Examination Level)</label><input type="text" id="pdfExamLevel" placeholder="مثلاً B1 یا B2"></div>
-    <div class="input-group"><label>مدت زمان (Duration)</label><input type="text" id="pdfExamDuration" placeholder="مثلاً 90 min"></div>
-    <div class="input-group"><label>سازمان</label><input type="text" id="pdfOrg" value="I.P.A" readonly style="opacity:.7"></div>
+    <div class="input-group"><label>نام آزمون (Exam Name)</label>
+      <input type="text" id="pdfExamName" dir="ltr" style="direction:ltr;text-align:left">
+    </div>
+    <div class="input-group"><label>نوع آزمون (Exam Type)</label>
+      <div class="pdf-pick-wrap">
+        <button type="button" class="pdf-pick" id="pdfExamTypeBtn" onclick="togglePdfPick('pdfExamTypeMenu')">EXAM ▾</button>
+        <div class="pdf-pick-menu" id="pdfExamTypeMenu">
+          <button type="button" data-val="EXAM" onclick="selectPdfType('EXAM')">EXAM</button>
+          <button type="button" data-val="MOCK EXAM" onclick="selectPdfType('MOCK EXAM')">MOCK EXAM</button>
+          <button type="button" data-val="EXAM + MOCK EXAM" onclick="selectPdfType('EXAM + MOCK EXAM')">EXAM + MOCK EXAM</button>
+        </div>
+        <input type="hidden" id="pdfExamType" value="EXAM">
+      </div>
+    </div>
+    <div class="input-group"><label>سطح (Examination Level)</label>
+      <input type="text" id="pdfExamLevel" placeholder="مثلاً B1 یا B2" dir="ltr" style="direction:ltr;text-align:left">
+    </div>
+    <div class="input-group"><label>مدت زمان (Duration)</label>
+      <input type="text" id="pdfExamDuration" placeholder="مثلاً 90 min" dir="ltr" style="direction:ltr;text-align:left">
+    </div>
+    <div class="input-group"><label>سازمان</label>
+      <input type="text" id="pdfOrg" value="I.P.A" readonly style="opacity:.7;direction:ltr;text-align:left" dir="ltr">
+    </div>
+
+    <div class="section-label">اندازه لوگو</div>
+    <div class="logo-size-row">
+      <input type="range" id="pdfLogoSize" min="10" max="28" step="0.5" value="17" oninput="document.getElementById('pdfLogoSizeVal').textContent=this.value+' mm'">
+      <span class="logo-size-val" id="pdfLogoSizeVal">17 mm</span>
+    </div>
 
     <div class="section-label">اندازه فونت (pt)</div>
     <div class="font-row">
-      <div class="input-group"><label>عنوان اصلی</label><input type="number" id="pdfSizeTitle" min="6" max="16" step="0.5" value="9"></div>
-      <div class="input-group"><label>زیرعنوان</label><input type="number" id="pdfSizeSubtitle" min="5" max="12" step="0.5" value="6.5"></div>
-      <div class="input-group"><label>شماره سوال (Q 01.)</label><input type="number" id="pdfSizeQNum" min="6" max="14" step="0.5" value="8"></div>
-      <div class="input-group"><label>متن سوال</label><input type="number" id="pdfSizeQText" min="6" max="14" step="0.5" value="7.5"></div>
-      <div class="input-group"><label>گزینه‌ها</label><input type="number" id="pdfSizeOpt" min="5" max="12" step="0.5" value="7"></div>
-      <div class="input-group"><label>اطلاعات سربرگ</label><input type="number" id="pdfSizeMeta" min="4" max="10" step="0.5" value="6"></div>
+      <div class="input-group"><label>عنوان اصلی برگه</label><input type="number" id="pdfSizeTitle" min="6" max="18" step="0.5" value="9" dir="ltr" style="direction:ltr;text-align:left"></div>
+      <div class="input-group"><label>زیرعنوان</label><input type="number" id="pdfSizeSubtitle" min="5" max="12" step="0.5" value="6.5" dir="ltr" style="direction:ltr;text-align:left"></div>
+      <div class="input-group"><label>شماره سوال (Q 01.)</label><input type="number" id="pdfSizeQNum" min="6" max="14" step="0.5" value="8" dir="ltr" style="direction:ltr;text-align:left"></div>
+      <div class="input-group"><label>متن سوال</label><input type="number" id="pdfSizeQText" min="6" max="14" step="0.5" value="7.5" dir="ltr" style="direction:ltr;text-align:left"></div>
+      <div class="input-group"><label>گزینه‌ها</label><input type="number" id="pdfSizeOpt" min="5" max="12" step="0.5" value="7" dir="ltr" style="direction:ltr;text-align:left"></div>
+      <div class="input-group"><label>اطلاعات سربرگ</label><input type="number" id="pdfSizeMeta" min="4" max="10" step="0.5" value="6" dir="ltr" style="direction:ltr;text-align:left"></div>
     </div>
 
     <div class="section-label">ضخامت فونت</div>
     <div class="input-group"><label>عنوان و شماره سوال</label>
-      <select id="pdfWeightBold">
-        <option value="bold" selected>Bold (ضخیم)</option>
-        <option value="normal">Normal (معمولی)</option>
-      </select>
+      <div class="pdf-pick-wrap">
+        <button type="button" class="pdf-pick" id="pdfWeightBoldBtn" onclick="togglePdfPick('pdfWeightBoldMenu')">Bold (ضخیم) ▾</button>
+        <div class="pdf-pick-menu" id="pdfWeightBoldMenu">
+          <button type="button" data-val="bold" onclick="selectPdfWeight('bold','bold')">Bold (ضخیم)</button>
+          <button type="button" data-val="normal" onclick="selectPdfWeight('bold','normal')">Normal (معمولی)</button>
+        </div>
+        <input type="hidden" id="pdfWeightBold" value="bold">
+      </div>
     </div>
     <div class="input-group"><label>متن سوال و گزینه‌ها</label>
-      <select id="pdfWeightRegular">
-        <option value="normal" selected>Normal (معمولی)</option>
-        <option value="bold">Bold (ضخیم)</option>
-      </select>
+      <div class="pdf-pick-wrap">
+        <button type="button" class="pdf-pick" id="pdfWeightRegularBtn" onclick="togglePdfPick('pdfWeightRegularMenu')">Normal (معمولی) ▾</button>
+        <div class="pdf-pick-menu" id="pdfWeightRegularMenu">
+          <button type="button" data-val="normal" onclick="selectPdfWeight('regular','normal')">Normal (معمولی)</button>
+          <button type="button" data-val="bold" onclick="selectPdfWeight('regular','bold')">Bold (ضخیم)</button>
+        </div>
+        <input type="hidden" id="pdfWeightRegular" value="normal">
+      </div>
     </div>
 
-    <div class="hint" style="margin-top:12px">پس از تنظیم، دکمه «دانلود» پایین صفحه را بزنید. فایل PDF طبق قالب استاندارد I.P.A ساخته می‌شود.</div>
+    <div class="hint" style="margin-top:12px" id="pdfSettingsHint">پس از تنظیم، دکمه «دانلود» پایین صفحه را بزنید.</div>
+    <button type="button" class="btn btn-secondary" id="pdfSaveDefaultsBtn" style="margin-top:12px;display:none" onclick="savePdfGlobalDefaults()">ذخیره به‌عنوان پیش‌فرض همه</button>
   </div>
   <div class="pdf-fixed-dl" id="pdfFixedDlBtn">
     <button class="btn btn-primary" id="pdfStartDownloadBtn" onclick="startExamPdfDownload()">دانلود</button>
   </div>
 </div>
 
+<!-- MANAGER APP SETTINGS -->
+<div class="page top" id="managerSettingsPage">
+  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="backToStaff()">برگشت</button>
+  <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center">تنظیمات</h2>
+  <div class="list" style="max-width:560px;margin:0 auto">
+    <div class="settings-row">
+      <div style="flex:1;padding-left:12px">
+        <div class="s-title">تنظیمات دانلود</div>
+        <div class="s-desc">اگر خاموش باشد، با زدن دانلود مستقیم فایل ساخته می‌شود و صفحه تنظیمات دیده نمی‌شود</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="pdfSettingsToggle" onchange="onPdfSettingsToggle(this.checked)">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <button class="btn btn-primary" onclick="openManagerPdfDefaults()">ویرایش مقادیر پیش‌فرض دانلود</button>
+    <div class="hint" style="margin-top:10px;text-align:center">مقادیر پیش‌فرض وقتی کلید تنظیمات دانلود خاموش است استفاده می‌شوند</div>
+  </div>
+</div>
+
+<!-- DOWNLOADS HISTORY -->
 <!-- DOWNLOADS HISTORY -->
 <div class="page top" id="downloadsPage">
   <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="backToStaff()">برگشت</button>
@@ -1213,7 +1313,10 @@ function updateMenuForPage(id){
   } else if(id==="userMainPage"){
     menu.innerHTML = "<button type=\"button\" onclick=\"closeMenu();startChangePass()\">تغییر رمز</button>"+
       "<button type=\"button\" onclick=\"closeMenu();startDeleteAccount()\">حذف حساب</button>";
-  } else if(id==="managerPage"||id==="adminPage"){
+  } else if(id==="managerPage"){
+    menu.innerHTML = "<button type=\"button\" onclick=\"closeMenu();startChangePass()\">تغییر رمز</button>"+
+      "<button type=\"button\" onclick=\"closeMenu();openManagerSettings()\">تنظیمات</button>";
+  } else if(id==="adminPage"){
     menu.innerHTML = "<button type=\"button\" onclick=\"closeMenu();startChangePass()\">تغییر رمز</button>";
   } else {
     menu.innerHTML = "";
@@ -3219,6 +3322,104 @@ function mapExamTypeForPdf(t){
   return 'EXAM';
 }
 
+function isPdfSettingsEnabled(){
+  var v = localStorage.getItem('ipa_pdf_settings_enabled');
+  // default ON
+  if(v === null || v === undefined) return true;
+  return v === '1' || v === 'true';
+}
+function setPdfSettingsEnabled(on){
+  localStorage.setItem('ipa_pdf_settings_enabled', on ? '1' : '0');
+}
+function loadPdfGlobalDefaults(){
+  try{ return JSON.parse(localStorage.getItem('ipa_pdf_global_defaults')||'{}'); }catch(e){ return {}; }
+}
+function savePdfGlobalDefaults(){
+  var s = collectPdfSettings();
+  localStorage.setItem('ipa_pdf_global_defaults', JSON.stringify(s));
+  toast('پیش‌فرض‌ها ذخیره شد','ok');
+}
+function openManagerSettings(){
+  showPage('managerSettingsPage');
+  var t = document.getElementById('pdfSettingsToggle');
+  if(t) t.checked = isPdfSettingsEnabled();
+}
+function onPdfSettingsToggle(on){
+  setPdfSettingsEnabled(!!on);
+  toast(on ? 'صفحه تنظیمات دانلود فعال شد' : 'صفحه تنظیمات دانلود خاموش شد','ok');
+}
+function openManagerPdfDefaults(){
+  // open settings page in "defaults mode" (no exam download)
+  _pdfExamData = null;
+  _pdfDefaultsMode = true;
+  fillPdfSettingsForm(loadPdfGlobalDefaults(), {
+    name: '',
+    type: 'exam',
+    time_limit: 60
+  });
+  var hint = document.getElementById('pdfSettingsHint');
+  if(hint) hint.textContent = 'این مقادیر به‌عنوان پیش‌فرض ذخیره می‌شوند و وقتی کلید تنظیمات دانلود خاموش باشد استفاده می‌گردند.';
+  var saveBtn = document.getElementById('pdfSaveDefaultsBtn');
+  if(saveBtn) saveBtn.style.display = '';
+  var dlBtn = document.getElementById('pdfFixedDlBtn');
+  if(dlBtn) dlBtn.classList.remove('show');
+  var back = document.getElementById('pdfSettingsBackBtn');
+  if(back) back.setAttribute('onclick', "openManagerSettings()");
+  showPage('pdfSettingsPage');
+}
+function onPdfSettingsBack(){
+  if(_pdfDefaultsMode){ _pdfDefaultsMode = false; openManagerSettings(); return; }
+  openManageExams();
+}
+function togglePdfPick(menuId){
+  var m = document.getElementById(menuId);
+  if(!m) return;
+  var open = m.classList.contains('open');
+  document.querySelectorAll('.pdf-pick-menu.open').forEach(function(el){ el.classList.remove('open'); });
+  if(!open) m.classList.add('open');
+}
+function selectPdfType(val){
+  document.getElementById('pdfExamType').value = val;
+  document.getElementById('pdfExamTypeBtn').textContent = val + ' ▾';
+  document.getElementById('pdfExamTypeMenu').classList.remove('open');
+  document.querySelectorAll('#pdfExamTypeMenu button').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-val')===val);
+  });
+}
+function selectPdfWeight(which, val){
+  var labels = { bold:'Bold (ضخیم)', normal:'Normal (معمولی)' };
+  if(which==='bold'){
+    document.getElementById('pdfWeightBold').value = val;
+    document.getElementById('pdfWeightBoldBtn').textContent = (labels[val]||val) + ' ▾';
+    document.getElementById('pdfWeightBoldMenu').classList.remove('open');
+  } else {
+    document.getElementById('pdfWeightRegular').value = val;
+    document.getElementById('pdfWeightRegularBtn').textContent = (labels[val]||val) + ' ▾';
+    document.getElementById('pdfWeightRegularMenu').classList.remove('open');
+  }
+}
+function fillPdfSettingsForm(pref, examLike){
+  pref = pref || {};
+  document.getElementById('pdfHeaderTitle').value = pref.headerTitle || 'AIRCRAFT MAINTENANCE EXAMINATION';
+  document.getElementById('pdfExamName').value = pref.examName != null ? pref.examName : (examLike && examLike.name) || '';
+  var t = pref.examType || mapExamTypeForPdf((examLike && examLike.type) || 'exam');
+  selectPdfType(t);
+  document.getElementById('pdfExamLevel').value = pref.level || 'B1';
+  document.getElementById('pdfExamDuration').value = pref.duration || ((examLike && examLike.time_limit) ? (examLike.time_limit + ' min') : '60 min');
+  document.getElementById('pdfOrg').value = 'I.P.A';
+  var logo = pref.logoSize != null ? pref.logoSize : 17;
+  document.getElementById('pdfLogoSize').value = logo;
+  document.getElementById('pdfLogoSizeVal').textContent = logo + ' mm';
+  document.getElementById('pdfSizeTitle').value = pref.sizeTitle != null ? pref.sizeTitle : 9;
+  document.getElementById('pdfSizeSubtitle').value = pref.sizeSubtitle != null ? pref.sizeSubtitle : 6.5;
+  document.getElementById('pdfSizeQNum').value = pref.sizeQNum != null ? pref.sizeQNum : 8;
+  document.getElementById('pdfSizeQText').value = pref.sizeQText != null ? pref.sizeQText : 7.5;
+  document.getElementById('pdfSizeOpt').value = pref.sizeOpt != null ? pref.sizeOpt : 7;
+  document.getElementById('pdfSizeMeta').value = pref.sizeMeta != null ? pref.sizeMeta : 6;
+  selectPdfWeight('bold', pref.weightBold || 'bold');
+  selectPdfWeight('regular', pref.weightRegular || 'normal');
+}
+var _pdfDefaultsMode = false;
 async function openPdfSettings(examId){
   try{
     const rows = await sbGet('exams','select=*&id=eq.'+examId);
@@ -3233,23 +3434,35 @@ async function openPdfSettings(examId){
       time_limit: ex.time_limit || 0,
       questions: qs
     };
-    document.getElementById('pdfExamName').value = _pdfExamData.name;
-    document.getElementById('pdfExamType').value = mapExamTypeForPdf(_pdfExamData.type);
-    document.getElementById('pdfExamLevel').value = localStorage.getItem('ipa_pdf_default_level') || 'B1';
-    document.getElementById('pdfExamDuration').value = (_pdfExamData.time_limit ? (_pdfExamData.time_limit + ' min') : '60 min');
-    document.getElementById('pdfOrg').value = 'I.P.A';
-    // restore last font prefs
-    try{
-      const pref = JSON.parse(localStorage.getItem('ipa_pdf_font_prefs')||'{}');
-      if(pref.sizeTitle) document.getElementById('pdfSizeTitle').value = pref.sizeTitle;
-      if(pref.sizeSubtitle) document.getElementById('pdfSizeSubtitle').value = pref.sizeSubtitle;
-      if(pref.sizeQNum) document.getElementById('pdfSizeQNum').value = pref.sizeQNum;
-      if(pref.sizeQText) document.getElementById('pdfSizeQText').value = pref.sizeQText;
-      if(pref.sizeOpt) document.getElementById('pdfSizeOpt').value = pref.sizeOpt;
-      if(pref.sizeMeta) document.getElementById('pdfSizeMeta').value = pref.sizeMeta;
-      if(pref.weightBold) document.getElementById('pdfWeightBold').value = pref.weightBold;
-      if(pref.weightRegular) document.getElementById('pdfWeightRegular').value = pref.weightRegular;
-    }catch(e){}
+    _pdfDefaultsMode = false;
+    var back = document.getElementById('pdfSettingsBackBtn');
+    if(back) back.setAttribute('onclick', 'onPdfSettingsBack()');
+    var saveBtn = document.getElementById('pdfSaveDefaultsBtn');
+    if(saveBtn) saveBtn.style.display = 'none';
+    var hint = document.getElementById('pdfSettingsHint');
+    if(hint) hint.textContent = 'پس از تنظیم، دکمه «دانلود» پایین صفحه را بزنید.';
+
+    // If settings disabled → skip UI and download with defaults
+    if(!isPdfSettingsEnabled()){
+      var defs = loadPdfGlobalDefaults();
+      // merge exam-specific name/duration if not in defaults
+      if(!defs.examName) defs.examName = _pdfExamData.name;
+      if(!defs.duration) defs.duration = _pdfExamData.time_limit ? (_pdfExamData.time_limit + ' min') : '60 min';
+      if(!defs.examType) defs.examType = mapExamTypeForPdf(_pdfExamData.type);
+      // apply to form hidden then start
+      fillPdfSettingsForm(defs, _pdfExamData);
+      startExamPdfDownload();
+      return;
+    }
+
+    var last = {};
+    try{ last = JSON.parse(localStorage.getItem('ipa_pdf_font_prefs')||'{}'); }catch(e){}
+    var defs = loadPdfGlobalDefaults();
+    var merged = Object.assign({}, defs, last);
+    if(!merged.examName) merged.examName = _pdfExamData.name;
+    if(!merged.duration) merged.duration = _pdfExamData.time_limit ? (_pdfExamData.time_limit + ' min') : '60 min';
+    if(!merged.examType) merged.examType = mapExamTypeForPdf(_pdfExamData.type);
+    fillPdfSettingsForm(merged, _pdfExamData);
     showPage('pdfSettingsPage');
     setTimeout(function(){
       var bar = document.getElementById('pdfFixedDlBtn');
@@ -3290,18 +3503,22 @@ function renderDownloadsList(){
     list.innerHTML = '<div class="empty">هنوز فایلی دانلود نشده است</div>';
     return;
   }
-  // newest first
   items = items.slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+  var shareSvg = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>';
   list.innerHTML = items.map(function(it){
     var pct = it.progress != null ? it.progress : (it.status==='done' ? 100 : 0);
     var cls = 'dl-item' + (it.status==='done' ? ' done' : ' generating');
     var statusTxt = it.status==='done' ? 'آماده' : (it.status==='error' ? 'خطا' : 'در حال ساخت...');
-    var actions = '';
+    var topActions = '';
+    var bottomActions = '';
     if(it.status==='done' && it.data){
-      actions = '<div class="dl-actions">'
+      topActions = '<div class="dl-actions">'
         + '<button class="btn btn-primary btn-sm" onclick="openDownloadedPdf(\''+it.id+'\')">باز کردن</button>'
         + '<button class="btn btn-secondary btn-sm" onclick="redownloadPdf(\''+it.id+'\')">دانلود مجدد</button>'
-        + '<button class="btn btn-danger btn-sm" onclick="deleteDownloadedPdf(\''+it.id+'\')">حذف</button>'
+        + '</div>';
+      bottomActions = '<div class="dl-bottom-actions">'
+        + '<button type="button" class="btn btn-danger btn-sm" onclick="deleteDownloadedPdf(\''+it.id+'\')">حذف</button>'
+        + '<button type="button" class="btn-share" title="اشتراک‌گذاری" onclick="shareDownloadedPdf(\''+it.id+'\')" aria-label="share">'+shareSvg+'</button>'
         + '</div>';
     }
     return '<div class="'+cls+'" id="dlitem_'+it.id+'">'
@@ -3309,9 +3526,43 @@ function renderDownloadsList(){
       + '<div class="dl-meta">'+escapeHtml(it.meta||'')+' · '+statusTxt
       + (it.ts ? ' · '+fmtTime(it.ts) : '')+'</div>'
       + '<div class="dl-progress-wrap"><div class="dl-progress-bar" id="dlbar_'+it.id+'" style="width:'+pct+'%"></div></div>'
-      + actions
+      + topActions
+      + bottomActions
       + '</div>';
   }).join('');
+}
+
+async function shareDownloadedPdf(id){
+  var items = loadPdfDownloads();
+  var it = items.find(function(x){ return x.id===id; });
+  if(!it || !it.data){ toast('فایل موجود نیست','err'); return; }
+  var filename = it.filename || 'exam.pdf';
+  var pure = (it.data.indexOf(',') >= 0) ? it.data.split(',')[1] : it.data;
+  // Android bridge share
+  try{
+    var b = getAndroidBridge && getAndroidBridge();
+    if(b && typeof b.sharePdf === 'function'){
+      b.sharePdf(pure, filename);
+      return;
+    }
+  }catch(e){}
+  // Web Share API with file
+  try{
+    var blob = base64ToBlob(it.data.indexOf(',')>=0 ? it.data : ('data:application/pdf;base64,'+it.data));
+    var file = new File([blob], filename, { type: 'application/pdf' });
+    if(navigator.canShare && navigator.canShare({ files: [file] })){
+      await navigator.share({ files: [file], title: it.name || filename });
+      return;
+    }
+    if(navigator.share){
+      await navigator.share({ title: it.name || filename, text: 'PDF آزمون: ' + (it.name||filename) });
+      return;
+    }
+  }catch(e){
+    if(e && e.name === 'AbortError') return;
+    console.warn(e);
+  }
+  toast('اشتراک‌گذاری در این دستگاه پشتیبانی نمی‌شود','err');
 }
 
 function updateDlProgress(id, pct){
@@ -3340,11 +3591,13 @@ function ensureJsPdf(){
 
 function collectPdfSettings(){
   var s = {
+    headerTitle: (document.getElementById('pdfHeaderTitle').value||'AIRCRAFT MAINTENANCE EXAMINATION').trim(),
     examName: (document.getElementById('pdfExamName').value||'').trim(),
     examType: document.getElementById('pdfExamType').value,
     level: (document.getElementById('pdfExamLevel').value||'B1').trim(),
     duration: (document.getElementById('pdfExamDuration').value||'60 min').trim(),
     org: 'I.P.A',
+    logoSize: parseFloat(document.getElementById('pdfLogoSize').value)||17,
     sizeTitle: parseFloat(document.getElementById('pdfSizeTitle').value)||9,
     sizeSubtitle: parseFloat(document.getElementById('pdfSizeSubtitle').value)||6.5,
     sizeQNum: parseFloat(document.getElementById('pdfSizeQNum').value)||8,
@@ -3355,11 +3608,7 @@ function collectPdfSettings(){
     weightRegular: document.getElementById('pdfWeightRegular').value||'normal'
   };
   try{
-    localStorage.setItem('ipa_pdf_font_prefs', JSON.stringify({
-      sizeTitle:s.sizeTitle, sizeSubtitle:s.sizeSubtitle, sizeQNum:s.sizeQNum,
-      sizeQText:s.sizeQText, sizeOpt:s.sizeOpt, sizeMeta:s.sizeMeta,
-      weightBold:s.weightBold, weightRegular:s.weightRegular
-    }));
+    localStorage.setItem('ipa_pdf_font_prefs', JSON.stringify(s));
     localStorage.setItem('ipa_pdf_default_level', s.level);
   }catch(e){}
   return s;
@@ -3367,6 +3616,10 @@ function collectPdfSettings(){
 
 async function startExamPdfDownload(){
   if(_pdfGenerating){ toast('در حال ساخت PDF...','err'); return; }
+  if(_pdfDefaultsMode){
+    savePdfGlobalDefaults();
+    return;
+  }
   if(!_pdfExamData || !_pdfExamData.questions || !_pdfExamData.questions.length){
     toast('سوالی برای خروجی وجود ندارد','err'); return;
   }
@@ -3634,7 +3887,7 @@ function buildExamPdfBlob(JsPDF, examData, settings, onProgress){
 
       // logo
       var logoData = 'data:image/png;base64,' + IPA_LOGO_B64;
-      var logoSize = 17;
+      var logoSize = (settings.logoSize != null ? settings.logoSize : 17);
 
       function drawHeader(pageNum, totalPages, isFirst){
         var top = marginT;
@@ -3644,7 +3897,7 @@ function buildExamPdfBlob(JsPDF, examData, settings, onProgress){
         var ty = top + 4;
         doc.setTextColor.apply(doc, DARK);
         setF(settings.sizeTitle, settings.weightBold);
-        doc.text('AIRCRAFT MAINTENANCE EXAMINATION', tx, ty);
+        doc.text(settings.headerTitle || 'AIRCRAFT MAINTENANCE EXAMINATION', tx, ty);
         doc.setTextColor.apply(doc, GRAY);
         setF(settings.sizeSubtitle, 'normal');
         doc.text('MULTIPLE CHOICE ASSESSMENT PAPER', tx, ty + 4);
@@ -3803,6 +4056,13 @@ function buildExamPdfBlob(JsPDF, examData, settings, onProgress){
 }
 
 // Hook showPage to hide fixed download bar when leaving settings
+
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.pdf-pick-wrap')){
+    document.querySelectorAll('.pdf-pick-menu.open').forEach(function(el){ el.classList.remove('open'); });
+  }
+});
+
 (function patchShowPageForPdf(){
   var tries = 0;
   function tryPatch(){
