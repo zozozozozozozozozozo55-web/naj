@@ -527,6 +527,7 @@ body.dark .diff-5{color:#f87171}
 }
 
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -757,6 +758,7 @@ body.dark .diff-5{color:#f87171}
     <button class="btn btn-secondary" onclick="openManageAdmins()">مدیریت ادمین</button>
     <button class="btn btn-secondary" onclick="openManageExams()">مدیریت آزمون</button>
     <button class="btn btn-secondary" onclick="openQuestionBanks()">بانک سوال</button>
+    <button class="btn btn-secondary" onclick="openDownloads()">دانلودها</button>
     <button class="btn btn-primary" onclick="openStats()" style="grid-column:1/-1">آمار</button>
     </div>
   </div>
@@ -888,6 +890,15 @@ body.dark .diff-5{color:#f87171}
   <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="showPage('statsPage')">برگشت</button>
   <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center" id="statsDetailTitle">جزئیات</h2>
   <div id="statsDetailBody" style="max-width:560px;margin:0 auto;width:100%"></div>
+</div>
+
+
+<!-- DOWNLOADS -->
+<div class="page top" id="downloadsPage">
+  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="backToStaff()">برگشت</button>
+  <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center">دانلودها</h2>
+  <p style="text-align:center;font-size:12px;color:var(--muted);max-width:560px;margin:0 auto 12px;width:100%">فایل‌هایی که با این حساب و این دستگاه دانلود کرده‌اید</p>
+  <div class="list" id="downloadsList" style="max-width:560px;margin:0 auto"></div>
 </div>
 
 <!-- CONFIRM MODAL -->
@@ -2082,6 +2093,7 @@ function renderAdminPanel(){
   if(p.stats) html+='<button class="btn btn-primary" onclick="openStats()">آمار</button>';
   if(p.addAdmin) html+='<button class="btn btn-secondary" onclick="openAddAdmin()">افزودن ادمین</button>';
   if(p.viewBanks||p.editBanks) html+='<button class="btn btn-secondary" onclick="openQuestionBanks()">بانک سوال</button>';
+  html+='<button class="btn btn-secondary" onclick="openDownloads()">دانلودها</button>';
   if(!html) html='<div class="empty">هیچ اختیاری برای شما فعال نیست</div>';
   box.innerHTML=html;
 }
@@ -2339,7 +2351,7 @@ async function openManageExams(){
           · ${ex.enabled?'فعال':'غیرفعال'}
         </div>
         <div class="card-actions">
-          <button class="btn btn-secondary btn-sm" onclick="editExamName(${ex.id})">تغییر نام</button>
+          <button class="btn btn-secondary btn-sm" onclick="downloadExamPdf(${ex.id})">دانلود</button>
           <button class="btn btn-primary btn-sm" onclick="openEditExam(${ex.id})">ویرایش</button>
           <button class="btn btn-danger btn-sm" onclick="deleteExam(${ex.id})">حذف</button>
         </div>
@@ -3102,9 +3114,375 @@ function canBanks(){
 
 
 
+
+/* ===== Downloads history + Exam PDF export ===== */
+function downloadsStorageKey(){
+  if(isManager) return 'exam_dl_manager';
+  if(currentAdmin && currentAdmin.name) return 'exam_dl_admin_' + currentAdmin.name;
+  return 'exam_dl_anon';
+}
+function loadDownloadHistory(){
+  try{
+    const raw = localStorage.getItem(downloadsStorageKey());
+    if(!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  }catch(e){ return []; }
+}
+function saveDownloadHistory(list){
+  try{ localStorage.setItem(downloadsStorageKey(), JSON.stringify(list.slice(0, 100))); }catch(e){}
+}
+function recordDownload(meta){
+  const list = loadDownloadHistory();
+  list.unshift({
+    id: 'dl_' + Date.now(),
+    examId: meta.examId,
+    examName: meta.examName || '',
+    typeLabel: meta.typeLabel || '',
+    questions: meta.questions || 0,
+    duration: meta.duration || 0,
+    level: meta.level || '',
+    fileName: meta.fileName || '',
+    at: new Date().toISOString(),
+    account: isManager ? 'manager' : (currentAdmin ? currentAdmin.name : '—')
+  });
+  saveDownloadHistory(list);
+}
+function openDownloads(){
+  if(!isManager && !currentAdmin){ toast('دسترسی ندارید','err'); return; }
+  showPage('downloadsPage');
+  const list = document.getElementById('downloadsList');
+  const rows = loadDownloadHistory();
+  if(!rows.length){
+    list.innerHTML = '<div class="empty">هنوز فایلی دانلود نشده است</div>';
+    return;
+  }
+  list.innerHTML = rows.map(function(r){
+    return '<div class="card">'
+      + '<h4>' + escapeHtml(r.examName || 'آزمون') + '</h4>'
+      + '<div class="meta">' + escapeHtml(r.typeLabel || '') + (r.level ? ' · ' + escapeHtml(r.level) : '') + '</div>'
+      + '<div class="meta">' + (r.questions|0) + ' سوال · زمان: ' + (r.duration|0) + ' دقیقه</div>'
+      + '<div class="meta">فایل: <span dir="ltr">' + escapeHtml(r.fileName || '—') + '</span></div>'
+      + '<div class="meta">زمان دانلود: ' + fmtTime(r.at) + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function examTypePdfLabel(t){
+  if(t === 'practice') return 'MOCK EXAM';
+  if(t === 'exam') return 'EXAM';
+  return 'EXAM + MOCK EXAM';
+}
+function guessExamLevel(name){
+  if(!name) return '—';
+  var m = String(name).match(/\b(B1\.?\d?|B2\.?\d?|B1|B2)\b/i);
+  return m ? m[1].toUpperCase() : '—';
+}
+function safeFileName(s){
+  return String(s || 'exam').replace(/[^\w\-\u0600-\u06FF]+/g, '_').replace(/_+/g, '_').slice(0, 80);
+}
+
+function createExamLogoDataUrl(){
+  var size = 256;
+  var c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  var ctx = c.getContext('2d');
+  ctx.clearRect(0,0,size,size);
+  // outer circle
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 10;
+  ctx.beginPath();
+  ctx.arc(size/2, size/2, size/2 - 12, 0, Math.PI*2);
+  ctx.stroke();
+  // globe
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(size/2, size/2 - 18, 58, 0, Math.PI*2);
+  ctx.stroke();
+  // latitude
+  for(var i=-2;i<=2;i++){
+    ctx.beginPath();
+    ctx.ellipse(size/2, size/2 - 18 + i*18, 58, 12, 0, 0, Math.PI*2);
+    ctx.stroke();
+  }
+  // longitude
+  ctx.beginPath();
+  ctx.ellipse(size/2, size/2 - 18, 18, 58, 0, 0, Math.PI*2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(size/2, size/2 - 18 - 58);
+  ctx.lineTo(size/2, size/2 - 18 + 58);
+  ctx.stroke();
+  // helicopter (simple side view)
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  // fuselage
+  ctx.moveTo(70, size/2 - 10);
+  ctx.lineTo(160, size/2 - 14);
+  ctx.lineTo(175, size/2 - 6);
+  ctx.lineTo(155, size/2 + 8);
+  ctx.lineTo(80, size/2 + 10);
+  ctx.closePath();
+  ctx.fillStyle = '#000';
+  ctx.fill();
+  // main rotor
+  ctx.beginPath();
+  ctx.moveTo(60, size/2 - 22);
+  ctx.lineTo(190, size/2 - 22);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(125, size/2 - 22);
+  ctx.lineTo(125, size/2 - 14);
+  ctx.stroke();
+  // tail
+  ctx.beginPath();
+  ctx.moveTo(70, size/2 - 6);
+  ctx.lineTo(40, size/2 - 18);
+  ctx.stroke();
+  // tail rotor
+  ctx.beginPath();
+  ctx.moveTo(40, size/2 - 28);
+  ctx.lineTo(40, size/2 - 8);
+  ctx.stroke();
+  // open books base
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(55, size - 55);
+  ctx.quadraticCurveTo(size/2, size - 30, size - 55, size - 55);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(70, size - 48);
+  ctx.quadraticCurveTo(size/2, size - 22, size - 70, size - 48);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(size/2, size - 55);
+  ctx.lineTo(size/2, size - 28);
+  ctx.stroke();
+  return c.toDataURL('image/png');
+}
+
+function drawPersianCandidateLabel(pdf, x, y, w, h){
+  // Draw Persian text via canvas for proper shaping
+  var scale = 3;
+  var cw = Math.round(w * scale);
+  var ch = Math.round(h * scale);
+  var c = document.createElement('canvas');
+  c.width = cw; c.height = ch;
+  var ctx = c.getContext('2d');
+  ctx.fillStyle = '#f7f7f7';
+  ctx.fillRect(0,0,cw,ch);
+  ctx.strokeStyle = '#c8c8c8';
+  ctx.lineWidth = 1 * scale;
+  ctx.strokeRect(0.5*scale, 0.5*scale, cw - scale, ch - scale);
+  ctx.fillStyle = '#111';
+  ctx.font = 'bold ' + (7.5 * scale) + 'px "Tahoma","Noto Naskh Arabic","Arial"';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.direction = 'rtl';
+  ctx.fillText('نام و نام خانوادگی :', cw - 8 * scale, ch / 2);
+  try{
+    pdf.addImage(c.toDataURL('image/png'), 'PNG', x, y, w, h);
+  }catch(e){
+    pdf.setDrawColor(200);
+    pdf.setFillColor(247,247,247);
+    pdf.rect(x, y, w, h, 'FD');
+  }
+}
+
+async function downloadExamPdf(examId){
+  if(!(window.jspdf && window.jspdf.jsPDF) && typeof jspdf === 'undefined'){
+    toast('کتابخانه PDF در حال بارگذاری است...','err');
+    return;
+  }
+  toast('در حال ساخت PDF...','ok');
+  try{
+    const rows = await sbGet('exams','select=*&id=eq.'+examId);
+    const ex = rows && rows[0];
+    if(!ex){ toast('آزمون پیدا نشد','err'); return; }
+    let qs = Array.isArray(ex.questions) ? ex.questions : (typeof ex.questions === 'string' ? JSON.parse(ex.questions) : []);
+    qs = (qs || []).filter(function(q){ return q && q.enabled !== false && q.text; });
+    if(!qs.length){ toast('این آزمون سوال فعالی ندارد','err'); return; }
+
+    const JsPDF = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : jspdf.jsPDF;
+    const SIZE_TITLE = 9.0;
+    const SIZE_SUBTITLE = 6.5;
+    const SIZE_META = 6.0;
+    const SIZE_META_SMALL = 5.5;
+    const SIZE_Q_NUMBER = 8.0;
+    const SIZE_Q_TEXT = 7.5;
+    const SIZE_OPTION = 7.0;
+    const SIZE_FOOTER = 5.5;
+
+    const pageW = 210, pageH = 297;
+    const marginL = 12, marginR = 12, marginT = 7, marginB = 11;
+    const contentW = pageW - marginL - marginR;
+    const footerReserve = 10;
+    const headerH = 19;
+
+    const pdf = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const logoUrl = createExamLogoDataUrl();
+    const examName = ex.name || 'Examination';
+    const typeLabel = examTypePdfLabel(ex.type || 'both');
+    const level = guessExamLevel(examName);
+    const duration = (ex.time_limit|0) > 0 ? ((ex.time_limit|0) + ' min') : '—';
+    const totalQ = qs.length;
+    const letters = ['A','B','C','D','E','F'];
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(SIZE_Q_TEXT);
+
+    function measureItem(q, index){
+      const opts = (q.options || []).filter(function(o){ return o != null && String(o).trim() !== ''; });
+      const numLabel = 'Q ' + String(index + 1).padStart(2,'0') + '. ';
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(SIZE_Q_NUMBER);
+      const numW = pdf.getTextWidth(numLabel);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(SIZE_Q_TEXT);
+      const textLines = pdf.splitTextToSize(String(q.text || ''), Math.max(20, contentW - numW));
+      let h = 1.2 + Math.max(1, textLines.length) * 3.35;
+      opts.forEach(function(opt){
+        pdf.setFontSize(SIZE_OPTION);
+        const ol = pdf.splitTextToSize(String(opt), contentW - 12);
+        h += Math.max(4.0, ol.length * 3.1 + 0.8);
+      });
+      h += 2.4;
+      return { q: q, index: index, opts: opts, h: h, textLines: textLines, numLabel: numLabel, numW: numW };
+    }
+
+    const items = qs.map(function(q, i){ return measureItem(q, i); });
+
+    // Paginate without splitting questions
+    const pages = [];
+    let cur = [];
+    let used = 0;
+    items.forEach(function(item){
+      const candidateExtra = (pages.length === 0) ? 9.5 : 0;
+      const maxH = pageH - marginT - marginB - footerReserve - headerH - candidateExtra;
+      if(cur.length && used + item.h > maxH){
+        pages.push(cur);
+        cur = [item];
+        used = item.h;
+      } else {
+        cur.push(item);
+        used += item.h;
+      }
+    });
+    if(cur.length) pages.push(cur);
+    if(!pages.length) pages.push([]);
+    const totalPages = pages.length;
+
+    function drawHeader(pageIndex){
+      const y0 = marginT;
+      try{ pdf.addImage(logoUrl, 'PNG', marginL, y0, 16.5, 16.5); }catch(e){}
+      const tx = marginL + 18.5;
+      pdf.setTextColor(0,0,0);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(SIZE_TITLE);
+      pdf.text('AIRCRAFT MAINTENANCE EXAMINATION', tx, y0 + 4.0);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(SIZE_SUBTITLE);
+      pdf.setTextColor(100,100,100);
+      pdf.text('MULTIPLE CHOICE ASSESSMENT PAPER', tx, y0 + 7.4);
+      pdf.setTextColor(30,30,30);
+      pdf.setFontSize(SIZE_META);
+      var nameLine = 'Exam Name: ' + examName;
+      if(pdf.getTextWidth(nameLine) > contentW - 22){
+        pdf.setFontSize(SIZE_META_SMALL);
+        var maxChars = 70;
+        if(nameLine.length > maxChars) nameLine = nameLine.slice(0, maxChars - 1) + '…';
+      }
+      pdf.text(nameLine, tx, y0 + 11.0);
+      pdf.setFontSize(SIZE_META_SMALL);
+      const meta = 'Type: ' + typeLabel + '  |  Level: ' + level + '  |  Duration: ' + duration + '  |  Questions: ' + totalQ + '  |  Page ' + (pageIndex+1) + '/' + totalPages;
+      pdf.text(meta, tx, y0 + 14.4);
+      const lineY = y0 + 16.8;
+      pdf.setDrawColor(20);
+      pdf.setLineWidth(0.3);
+      pdf.line(marginL, lineY, pageW - marginR, lineY);
+      pdf.setDrawColor(170);
+      pdf.setLineWidth(0.12);
+      pdf.line(marginL, lineY + 0.7, pageW - marginR, lineY + 0.7);
+      return lineY + 1.3;
+    }
+
+    function drawFooter(pageIndex){
+      const fy = pageH - marginB + 1.5;
+      pdf.setDrawColor(170);
+      pdf.setLineWidth(0.12);
+      pdf.line(marginL, fy - 3.2, pageW - marginR, fy - 3.2);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(SIZE_FOOTER);
+      pdf.setTextColor(110,110,110);
+      pdf.text('I.P.A  |  Aircraft Maintenance Examination', marginL, fy);
+      pdf.text('Page ' + (pageIndex+1) + ' / ' + totalPages, pageW - marginR, fy, { align: 'right' });
+    }
+
+    pages.forEach(function(pageItems, pi){
+      if(pi > 0) pdf.addPage();
+      let y = drawHeader(pi);
+      if(pi === 0){
+        drawPersianCandidateLabel(pdf, marginL, y + 0.6, contentW, 7.5);
+        y += 9.0;
+      } else {
+        y += 2.0;
+      }
+      drawFooter(pi);
+
+      pageItems.forEach(function(item){
+        const opts = item.opts;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(SIZE_Q_NUMBER);
+        pdf.setTextColor(0,0,0);
+        pdf.text(item.numLabel, marginL, y + 2.8);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(SIZE_Q_TEXT);
+        const textLines = pdf.splitTextToSize(String(item.q.text || ''), Math.max(20, contentW - item.numW));
+        pdf.text(textLines, marginL + item.numW, y + 2.8);
+        y += Math.max(3.35, textLines.length * 3.35) + 1.4;
+
+        opts.forEach(function(opt, oi){
+          const letter = letters[oi] || String(oi + 1);
+          const box = 2.5;
+          pdf.setDrawColor(0);
+          pdf.setLineWidth(0.25);
+          pdf.rect(marginL + 1, y, box, box);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(SIZE_OPTION);
+          pdf.text(letter + '.', marginL + 1 + box + 1.4, y + 2.0);
+          pdf.setFont('helvetica', 'normal');
+          const optLines = pdf.splitTextToSize(String(opt), contentW - 12);
+          pdf.text(optLines, marginL + 1 + box + 1.4 + 5.2, y + 2.0);
+          y += Math.max(4.0, optLines.length * 3.1 + 0.8);
+        });
+        y += 2.2;
+      });
+    });
+
+    const fileName = 'Exam_' + safeFileName(examName) + '.pdf';
+    pdf.save(fileName);
+    recordDownload({
+      examId: ex.id,
+      examName: examName,
+      typeLabel: typeLabel,
+      questions: totalQ,
+      duration: ex.time_limit|0,
+      level: level,
+      fileName: fileName
+    });
+    toast('PDF دانلود شد','ok');
+  }catch(e){
+    console.error(e);
+    toast('خطا در ساخت PDF','err');
+  }
+}
+
+
+
 initTheme();
 if(typeof initPassEyes==='function') initPassEyes();
 showPage('homePage');
 </script>
+
 </body>
 </html>
