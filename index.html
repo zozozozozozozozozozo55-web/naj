@@ -3269,6 +3269,17 @@ function openDownloadsPage(){
   if(bar) bar.classList.remove('show');
   showPage('downloadsPage');
   renderDownloadsList();
+  // Bridge status banner
+  try{
+    var list = document.getElementById('downloadsList');
+    if(list && isAndroidWebView() && !hasAndroidDownloadBridge()){
+      var tip = document.createElement('div');
+      tip.className = 'card';
+      tip.style.cssText = 'margin-bottom:12px;border-color:var(--warn);font-size:12px;line-height:1.6';
+      tip.innerHTML = '<b style="color:var(--warn)">توجه:</b> برای ذخیره واقعی فایل روی گوشی، باید کد کوتاه Android Studio (JavascriptInterface) اضافه شود. تا آن زمان فایل فقط داخل برنامه نگه‌داری می‌شود. راهنمای کامل در توضیحات همراه فایل سایت آمده است.';
+      list.insertBefore(tip, list.firstChild);
+    }
+  }catch(e){}
 }
 
 function renderDownloadsList(){
@@ -3405,8 +3416,8 @@ async function startExamPdfDownload(){
       savePdfDownloads(items);
     }
     renderDownloadsList();
-    // also trigger native download
-    triggerBlobDownload(pdfBlob, entry.filename);
+    // Save to device Downloads (Android bridge) or browser download
+    await triggerBlobDownload(pdfBlob, entry.filename);
     toast('PDF آماده شد','ok');
   }catch(e){
     console.error(e);
@@ -3439,91 +3450,153 @@ function base64ToBlob(dataUrl){
   for(var i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
   return new Blob([arr], {type:mime});
 }
-function triggerBlobDownload(blob, filename){
+/* ---- Android / Browser download helpers ---- */
+function isAndroidWebView(){
+  var ua = navigator.userAgent || '';
+  return /Android/i.test(ua);
+}
+function getAndroidBridge(){
+  // Prefer a single bridge name: IPA (recommended in MainActivity)
+  var candidates = [
+    window.IPA,
+    window.Android,
+    window.AndroidInterface,
+    window.AndroidBridge,
+    window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.IPA
+  ];
+  for(var i=0;i<candidates.length;i++){
+    if(candidates[i]) return candidates[i];
+  }
+  return null;
+}
+function hasAndroidDownloadBridge(){
+  var b = getAndroidBridge();
+  if(!b) return false;
+  return typeof b.downloadPdf === 'function'
+      || typeof b.downloadBase64 === 'function'
+      || typeof b.downloadFile === 'function';
+}
+function hasAndroidOpenBridge(){
+  var b = getAndroidBridge();
+  if(!b) return false;
+  return typeof b.openPdf === 'function'
+      || typeof b.openPdfBase64 === 'function'
+      || typeof b.openFile === 'function';
+}
+function callAndroidDownload(base64Pure, filename){
+  var b = getAndroidBridge();
+  if(!b) return false;
   try{
-    // Android bridge if available
-    if(window.Android && typeof Android.downloadBase64 === 'function'){
-      blobToBase64(blob).then(function(b64){
-        Android.downloadBase64(b64.split(',')[1], filename, 'application/pdf');
-      });
-      return;
+    if(typeof b.downloadPdf === 'function'){ b.downloadPdf(base64Pure, filename); return true; }
+    if(typeof b.downloadBase64 === 'function'){ b.downloadBase64(base64Pure, filename, 'application/pdf'); return true; }
+    if(typeof b.downloadFile === 'function'){ b.downloadFile(base64Pure, filename); return true; }
+  }catch(e){ console.warn('Android download bridge error', e); }
+  return false;
+}
+function callAndroidOpen(base64Pure, filename){
+  var b = getAndroidBridge();
+  if(!b) return false;
+  try{
+    if(typeof b.openPdf === 'function'){ b.openPdf(base64Pure, filename); return true; }
+    if(typeof b.openPdfBase64 === 'function'){ b.openPdfBase64(base64Pure, filename); return true; }
+    if(typeof b.openFile === 'function'){ b.openFile(base64Pure, filename, 'application/pdf'); return true; }
+  }catch(e){ console.warn('Android open bridge error', e); }
+  return false;
+}
+
+function triggerBlobDownload(blob, filename){
+  // 1) Android native bridge (real save to Downloads folder)
+  return blobToBase64(blob).then(function(dataUrl){
+    var pure = (dataUrl.split(',')[1] || '');
+    if(callAndroidDownload(pure, filename)){
+      toast('فایل در پوشه Downloads ذخیره شد','ok');
+      return true;
     }
-    if(window.AndroidInterface && typeof AndroidInterface.downloadFile === 'function'){
-      blobToBase64(blob).then(function(b64){
-        AndroidInterface.downloadFile(b64.split(',')[1], filename);
-      });
-      return;
+    // 2) Standard browser download (works in Chrome, not in plain WebView)
+    try{
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'exam.pdf';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function(){ try{ URL.revokeObjectURL(url); a.remove(); }catch(e){} }, 5000);
+      // In WebView without DownloadListener this does nothing visible
+      if(isAndroidWebView() && !hasAndroidDownloadBridge()){
+        showAndroidSetupHint('download');
+      } else {
+        toast('دانلود شروع شد','ok');
+      }
+      return true;
+    }catch(e){
+      console.error(e);
+      showAndroidSetupHint('download');
+      return false;
     }
-  }catch(e){}
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 4000);
+  });
 }
 
 function openDownloadedPdf(id){
   var items = loadPdfDownloads();
   var it = items.find(function(x){ return x.id===id; });
   if(!it || !it.data){ toast('فایل موجود نیست','err'); return; }
-  var blob = base64ToBlob(it.data);
   var filename = it.filename || 'exam.pdf';
+  var pure = (it.data.indexOf(',') >= 0) ? it.data.split(',')[1] : it.data;
 
-  // Prefer Android bridges that open with system chooser
+  // 1) Android bridge → system app chooser (Adobe, Drive, Chrome, …)
+  if(callAndroidOpen(pure, filename)){
+    return;
+  }
+
+  // 2) Try blob URL in new window / same window
   try{
-    if(window.Android && typeof Android.openPdfBase64 === 'function'){
-      Android.openPdfBase64(it.data.split(',')[1], filename);
-      return;
-    }
-    if(window.AndroidInterface && typeof AndroidInterface.openPdf === 'function'){
-      AndroidInterface.openPdf(it.data.split(',')[1], filename);
-      return;
-    }
-    if(window.Android && typeof Android.openFileChooser === 'function'){
-      Android.openFileChooser(it.data.split(',')[1], filename, 'application/pdf');
-      return;
-    }
+    var blob = base64ToBlob(it.data.indexOf(',')>=0 ? it.data : ('data:application/pdf;base64,'+it.data));
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 60000);
   }catch(e){ console.warn(e); }
 
-  // Fallback: object URL + window / new window (WebView may hand off to system)
-  var url = URL.createObjectURL(blob);
-  // Try intent-style for Android WebView
-  try{
-    var opened = window.open(url, '_blank');
-    if(!opened){
-      // force navigation
-      var a = document.createElement('a');
-      a.href = url;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      // also set download as secondary
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    }
-  }catch(e){
-    triggerBlobDownload(blob, filename);
+  if(isAndroidWebView() && !hasAndroidOpenBridge()){
+    showAndroidSetupHint('open');
   }
-  // revoke later
-  setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 60000);
 }
 
 function redownloadPdf(id){
   var items = loadPdfDownloads();
   var it = items.find(function(x){ return x.id===id; });
   if(!it || !it.data){ toast('فایل موجود نیست','err'); return; }
-  triggerBlobDownload(base64ToBlob(it.data), it.filename||'exam.pdf');
-  toast('در حال دانلود مجدد','ok');
+  var blob = base64ToBlob(it.data.indexOf(',')>=0 ? it.data : ('data:application/pdf;base64,'+it.data));
+  triggerBlobDownload(blob, it.filename||'exam.pdf');
 }
 function deleteDownloadedPdf(id){
   var items = loadPdfDownloads().filter(function(x){ return x.id!==id; });
   savePdfDownloads(items);
   renderDownloadsList();
   toast('حذف شد','ok');
+}
+
+/** Guide user when Android WebView has no native bridge yet */
+function showAndroidSetupHint(kind){
+  var title = kind==='open' ? 'باز کردن PDF' : 'دانلود PDF';
+  var msg = 'اپلیکیشن هنوز به بخش دانلود/باز کردن فایل متصل نشده است.\\n\\n'
+    + 'برای حل کامل، باید چند خط کد در Android Studio اضافه شود (راهنما در پیام بعدی).\\n\\n'
+    + 'تا آن زمان فایل داخل برنامه ساخته شده و در «دانلودها» مانده است؛ بعد از اتصال bridge با دکمه «باز کردن» یا «دانلود مجدد» کار می‌کند.';
+  try{
+    if(typeof confirmModal === 'function'){
+      confirmModal(title, msg, 'متوجه شدم', {danger:false});
+    } else {
+      alert(title + '\\n\\n' + msg);
+    }
+  }catch(e){
+    toast('برای دانلود واقعی باید bridge اندروید اضافه شود','err');
+  }
 }
 
 /** Build the examination PDF matching the designed template */
