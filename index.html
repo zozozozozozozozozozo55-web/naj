@@ -963,6 +963,15 @@ body.dark .dl-progress-wrap{background:#2a2e3a}
       <div class="input-group"><label>متن سوال</label><input type="number" id="pdfSizeQText" min="6" max="14" step="0.5" value="7.5" dir="ltr" style="direction:ltr;text-align:left"></div>
       <div class="input-group"><label>گزینه‌ها</label><input type="number" id="pdfSizeOpt" min="5" max="12" step="0.5" value="7" dir="ltr" style="direction:ltr;text-align:left"></div>
       <div class="input-group"><label>اطلاعات سربرگ</label><input type="number" id="pdfSizeMeta" min="4" max="10" step="0.5" value="6" dir="ltr" style="direction:ltr;text-align:left"></div>
+      <div class="input-group" id="pdfSizeSectionWrap" style="display:none"><label>سرتیتر بخش (Section Title)</label><input type="number" id="pdfSizeSection" min="6" max="16" step="0.5" value="9" dir="ltr" style="direction:ltr;text-align:left"></div>
+    </div>
+
+    <div class="row-between" id="pdfAnswerKeyRow" style="display:none;margin:12px 0;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:12px">
+      <div>
+        <div style="font-weight:700;font-size:13px">پاسخ‌نامه</div>
+        <div class="hint">اگر روشن باشد، پاسخ‌نامه کل بانک با واترمارک در انتهای PDF اضافه می‌شود</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="pdfIncludeAnswers"><span class="slider"></span></label>
     </div>
 
     <div class="section-label">ضخامت فونت</div>
@@ -1462,9 +1471,12 @@ function handleAndroidBack(){
       }
     }
     // fallback to role home
-    if(currentUser){ showPage('userMainPage', { skipStack: true }); return true; }
-    if(isManager){ showPage('managerPage', { skipStack: true }); return true; }
-    if(currentAdmin){ showPage('adminPage', { skipStack: true }); return true; }
+    if(currentUser){ showPage('userMainPage', { skipStack: true });
+    try{ fetchExamsCached(false); }catch(e){} return true; }
+    if(isManager){ showPage('managerPage', { skipStack: true });
+    try{ fetchExamsCached(false); }catch(e){} return true; }
+    if(currentAdmin){ showPage('adminPage', { skipStack: true });
+    try{ fetchExamsCached(false); }catch(e){} return true; }
     showPage('homePage', { skipStack: true });
     return true;
   }catch(e){
@@ -2082,9 +2094,10 @@ function openQuestionBanks(){
         +'<div class="bk-meta">'+mods+' بخش · '+n+' سوال</div>'
         +'<div class="bk-bot"><div class="bk-bot-left">'
         +(canEdit?'<label class="switch" onclick="event.stopPropagation()"><input type="checkbox" '+(en?'checked':'')+' onchange="toggleBankEnabled(\''+id+'\',this.checked)"><span class="slider"></span></label>':'')
-        +'</div>'
+        +'</div><div style="display:flex;gap:6px;align-items:center">'
+        +'<button type="button" class="btn btn-primary btn-sm" onclick="event.stopPropagation();openBankPdfSettings(\''+id+'\')">دانلود</button>'
         +(canEdit?'<button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteBank(\''+id+'\')">حذف</button>':'')
-        +'</div></div>';
+        +'</div></div></div>';
     }).join('');
   }catch(e){
     console.error(e);
@@ -2801,17 +2814,31 @@ async function ensureSeedExams(){
 
 var _examsCache = null;
 var _examsCacheTs = 0;
+var _examsCachePromise = null;
 async function fetchExamsCached(force){
   var now = Date.now();
-  if(!force && _examsCache && (now - _examsCacheTs) < 15000){
+  if(!force && _examsCache && (now - _examsCacheTs) < 60000){
     return _examsCache.slice();
   }
-  var rows = await sbGet('exams','select=*&order=id.asc');
-  _examsCache = rows || [];
-  _examsCacheTs = now;
-  return _examsCache.slice();
+  // coalesce concurrent requests
+  if(!force && _examsCachePromise){
+    try{ return (await _examsCachePromise).slice(); }catch(e){}
+  }
+  _examsCachePromise = (async function(){
+    // lighter select for list views (still need questions for counts - keep *)
+    var rows = await sbGet('exams','select=id,name,type,enabled,time_limit,pass_percent,user_download,questions&order=id.asc');
+    _examsCache = rows || [];
+    _examsCacheTs = Date.now();
+    return _examsCache;
+  })();
+  try{
+    var r = await _examsCachePromise;
+    return r.slice();
+  } finally {
+    _examsCachePromise = null;
+  }
 }
-function invalidateExamsCache(){ _examsCache = null; _examsCacheTs = 0; }
+function invalidateExamsCache(){ _examsCache = null; _examsCacheTs = 0; _examsCachePromise = null; }
 
 async function openManageExams(){
   const p=currentAdmin&&currentAdmin.perms||{};
@@ -2819,9 +2846,15 @@ async function openManageExams(){
   const canE=isManager||p.manageExam||p.exams;
   if(!canP && !canE) return;
   showPage('manageExamsPage');
-  await ensureSeedExams();
   const list=document.getElementById('manageExamsList');
-  list.innerHTML='<div class="loading">...</div>';
+  // instant paint from cache if available
+  if(_examsCache && _examsCache.length){
+    list.innerHTML='';
+  } else {
+    list.innerHTML='<div class="loading">...</div>';
+  }
+  // seed in background, don't block
+  try{ ensureSeedExams(); }catch(e){}
   try{
     let rows=await fetchExamsCached(false);
     if(!isManager){
@@ -3197,9 +3230,13 @@ async function openExamList(mode){
   examListMode=mode;
   document.getElementById('examListTitle').textContent=mode==='practice'?'آزمون‌های آزمایشی':'آزمون‌ها';
   showPage('examListPage');
-  await ensureSeedExams();
   const list=document.getElementById('examList');
-  list.innerHTML='<div class="loading">...</div>';
+  if(_examsCache && _examsCache.length){
+    list.innerHTML='';
+  } else {
+    list.innerHTML='<div class="loading">...</div>';
+  }
+  try{ ensureSeedExams(); }catch(e){}
   try{
     const rows=(await fetchExamsCached(false)).filter(function(ex){ return ex.enabled!==false; });
     const filtered=(rows||[]).filter(ex=>{
@@ -3961,12 +3998,259 @@ function fillPdfSettingsForm(pref, examLike){
   document.getElementById('pdfSizeQText').value = pref.sizeQText != null ? pref.sizeQText : 7.5;
   document.getElementById('pdfSizeOpt').value = pref.sizeOpt != null ? pref.sizeOpt : 7;
   document.getElementById('pdfSizeMeta').value = pref.sizeMeta != null ? pref.sizeMeta : 6;
+  var ss = document.getElementById('pdfSizeSection');
+  if(ss) ss.value = pref.sizeSection != null ? pref.sizeSection : 9;
+  var ia = document.getElementById('pdfIncludeAnswers');
+  if(ia) ia.checked = !!pref.includeAnswers;
   selectPdfWeight('bold', pref.weightBold || 'bold');
   selectPdfWeight('regular', pref.weightRegular || 'normal');
 }
 var _pdfDefaultsMode = false;
+
+var _pdfMode = 'exam'; // exam | bank
+var _pdfBankData = null;
+
+function setPdfBankMode(on){
+  _pdfMode = on ? 'bank' : 'exam';
+  var secWrap = document.getElementById('pdfSizeSectionWrap');
+  var ansRow = document.getElementById('pdfAnswerKeyRow');
+  if(secWrap) secWrap.style.display = on ? '' : 'none';
+  if(ansRow) ansRow.style.display = on ? '' : 'none';
+  // hide exam-only fields partially for bank
+  var typeWrap = document.getElementById('pdfExamTypeBtn');
+  var dur = document.getElementById('pdfExamDuration');
+  if(typeWrap && typeWrap.closest){
+    var ig = typeWrap.closest('.input-group');
+    if(ig) ig.style.display = on ? 'none' : '';
+  }
+  if(dur && dur.closest){
+    var ig2 = dur.closest('.input-group');
+    if(ig2) ig2.style.display = on ? 'none' : '';
+  }
+}
+
+function openBankPdfSettings(bankId){
+  try{
+    var banks = getBanks();
+    var bank = banks.find(function(b){ return String(b.id)===String(bankId); });
+    if(!bank){ toast('بانک پیدا نشد','err'); return; }
+    var modules = (bank.modules||[]).filter(function(m){ return m && m.enabled !== false; });
+    var allQs = [];
+    modules.forEach(function(m){
+      var qs = (m.questions||[]).filter(function(q){ return q && q.enabled !== false && q.text; });
+      if(qs.length) allQs.push({ section: m.name||m.id, questions: qs });
+    });
+    if(!allQs.length){ toast('سوالی در این بانک نیست','err'); return; }
+    _pdfBankData = { id: bank.id, name: bank.name||'Question Bank', sections: allQs };
+    _pdfExamData = {
+      id: bank.id,
+      name: bank.name||'Question Bank',
+      type: 'exam',
+      time_limit: 0,
+      questions: allQs.reduce(function(a,s){ return a.concat(s.questions); }, [])
+    };
+    _pdfDefaultsMode = false;
+    setPdfBankMode(true);
+    var back = document.getElementById('pdfSettingsBackBtn');
+    if(back) back.setAttribute('onclick', "setPdfBankMode(false);openQuestionBanks()");
+    var saveBtn = document.getElementById('pdfSaveDefaultsBtn');
+    if(saveBtn) saveBtn.style.display = 'none';
+    var hint = document.getElementById('pdfSettingsHint');
+    if(hint) hint.textContent = 'پس از تنظیم، دانلود را بزنید. در صورت روشن بودن پاسخ‌نامه، در انتهای PDF اضافه می‌شود.';
+
+    var last = {};
+    try{ last = JSON.parse(localStorage.getItem('ipa_pdf_font_prefs')||'{}'); }catch(e){}
+    var defs = loadPdfGlobalDefaults();
+    var merged = Object.assign({}, defs, last);
+    merged.examName = bank.name || 'Question Bank';
+    merged.headerTitle = merged.headerTitle || 'QUESTION BANK';
+    merged.examType = 'EXAM';
+    merged.duration = '—';
+    fillPdfSettingsForm(merged, _pdfExamData);
+    showPage('pdfSettingsPage');
+    setTimeout(function(){
+      var bar = document.getElementById('pdfFixedDlBtn');
+      if(bar) bar.classList.add('show');
+    }, 50);
+  }catch(e){
+    console.error(e);
+    toast('خطا در باز کردن تنظیمات دانلود','err');
+  }
+}
+
+function buildBankPdfBlob(JsPDF, bankData, settings, onProgress){
+  return new Promise(function(resolve, reject){
+    try{
+      var doc = new JsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
+      var pageW = 210, pageH = 297;
+      var marginL = 14, marginR = 14, marginT = 12, marginB = 14;
+      var contentW = pageW - marginL - marginR;
+      var y = marginT;
+      var logoSize = settings.logoSize != null ? settings.logoSize : 17;
+      var sizeTitle = settings.sizeTitle || 9;
+      var sizeSection = settings.sizeSection || 9;
+      var sizeQNum = settings.sizeQNum || 8;
+      var sizeQText = settings.sizeQText || 7.5;
+      var sizeOpt = settings.sizeOpt || 7;
+      var sizeMeta = settings.sizeMeta || 6;
+      var wBold = settings.weightBold === 'normal' ? 'normal' : 'bold';
+      var wReg = settings.weightRegular === 'bold' ? 'bold' : 'normal';
+      var qGlobal = 0;
+      var answerKey = []; // {num, letter}
+
+      function ensureSpace(need){
+        if(y + need > pageH - marginB){
+          doc.addPage();
+          y = marginT;
+        }
+      }
+      var logoDataLocal = 'data:image/png;base64,' + (typeof IPA_LOGO_B64 !== 'undefined' ? IPA_LOGO_B64 : '');
+      function drawHeader(){
+        try{
+          if(logoDataLocal && logoDataLocal.length > 50){
+            doc.addImage(logoDataLocal, 'PNG', marginL, y, logoSize, logoSize);
+          }
+        }catch(e){}
+        var tx = marginL + logoSize + 3;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(sizeTitle);
+        doc.text(settings.headerTitle || 'QUESTION BANK', tx, y + 6);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(sizeMeta);
+        doc.text((settings.examName || bankData.name || '') + '  |  ' + (settings.org||'I.P.A'), tx, y + 11);
+        y = Math.max(y + logoSize, y + 16) + 4;
+        doc.setDrawColor(180);
+        doc.setLineWidth(0.3);
+        doc.line(marginL, y, pageW - marginR, y);
+        y += 5;
+      }
+      function wrapText(str, maxW, fontSize){
+        doc.setFontSize(fontSize);
+        return doc.splitTextToSize(String(str||''), maxW);
+      }
+      function drawQuestion(q, num){
+        var letters = 'ABCDEFGH';
+        var opts = (q.options||[]).filter(function(o){ return o != null && String(o).trim() !== ''; });
+        var prefix = 'Q ' + String(num).padStart(2,'0') + '. ';
+        doc.setFont('helvetica', wBold);
+        doc.setFontSize(sizeQNum);
+        var prefixW = doc.getTextWidth(prefix);
+        doc.setFont('helvetica', wReg);
+        doc.setFontSize(sizeQText);
+        var lines = wrapText(q.text||'', contentW - prefixW - 1, sizeQText);
+        var blockH = Math.max(lines.length, 1) * (sizeQText * 0.42) + opts.length * (sizeOpt * 0.45) + 4;
+        ensureSpace(blockH);
+        doc.setFont('helvetica', wBold);
+        doc.setFontSize(sizeQNum);
+        doc.text(prefix, marginL, y);
+        doc.setFont('helvetica', wReg);
+        doc.setFontSize(sizeQText);
+        doc.text(lines, marginL + prefixW, y);
+        y += Math.max(lines.length, 1) * (sizeQText * 0.42) + 1.5;
+        opts.forEach(function(o, oi){
+          ensureSpace(sizeOpt * 0.5);
+          doc.setFontSize(sizeOpt);
+          doc.text(letters[oi] + ')  ' + o, marginL + 4, y);
+          y += sizeOpt * 0.45;
+        });
+        y += 2.5;
+        var corr = Math.min(opts.length-1, Math.max(0, q.correct|0));
+        answerKey.push({ num: num, letter: letters[corr] || '?' });
+      }
+
+      drawHeader();
+      var sections = bankData.sections || [];
+      var totalQ = sections.reduce(function(a,s){ return a + (s.questions||[]).length; }, 0);
+      var done = 0;
+      sections.forEach(function(sec){
+        ensureSpace(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(sizeSection);
+        doc.setTextColor(40,40,90);
+        var secLines = wrapText(sec.section || 'Section', contentW, sizeSection);
+        doc.text(secLines, marginL, y);
+        y += secLines.length * (sizeSection * 0.45) + 2;
+        doc.setDrawColor(120,120,180);
+        doc.setLineWidth(0.25);
+        doc.line(marginL, y, pageW - marginR, y);
+        y += 4;
+        doc.setTextColor(0,0,0);
+        (sec.questions||[]).forEach(function(q){
+          qGlobal++;
+          drawQuestion(q, qGlobal);
+          done++;
+          if(onProgress) onProgress(Math.min(90, Math.round(done/totalQ*80)));
+        });
+        y += 3;
+      });
+
+      // Answer key
+      if(settings.includeAnswers && answerKey.length){
+        doc.addPage();
+        y = marginT;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text('ANSWER KEY', pageW/2, y, { align:'center' });
+        y += 8;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text(settings.examName || bankData.name || '', pageW/2, y, { align:'center' });
+        y += 10;
+
+        // watermarks - many light ones
+        function stampWatermarks(){
+          doc.setTextColor(210, 210, 220);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(18);
+          var marks = ['ANSWER KEY','CONFIDENTIAL','I.P.A','DO NOT COPY','ANSWER KEY','I.P.A'];
+          var mi = 0;
+          for(var wy = 25; wy < pageH - 15; wy += 28){
+            for(var wx = 20; wx < pageW - 10; wx += 55){
+              doc.text(marks[mi % marks.length], wx, wy, { angle: -25 });
+              mi++;
+            }
+          }
+          doc.setTextColor(0,0,0);
+        }
+        stampWatermarks();
+
+        // answers in columns
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        var colW = contentW / 4;
+        var col = 0;
+        var startY = y;
+        answerKey.forEach(function(a, i){
+          if(y > pageH - marginB - 5){
+            doc.addPage();
+            stampWatermarks();
+            y = marginT + 5;
+            col = 0;
+            startY = y;
+          }
+          var x = marginL + col * colW;
+          var line = String(a.num).padStart(3,'0') + ' — ' + a.letter;
+          doc.text(line, x, y);
+          col++;
+          if(col >= 4){
+            col = 0;
+            y += 5.5;
+          }
+        });
+      }
+      if(onProgress) onProgress(100);
+      resolve(doc.output('blob'));
+    }catch(err){
+      reject(err);
+    }
+  });
+}
+
+
 async function openPdfSettings(examId){
   try{
+    setPdfBankMode(false);
+    _pdfBankData = null;
     const rows = await sbGet('exams','select=*&id=eq.'+examId);
     const ex = rows && rows[0];
     if(!ex){ toast('آزمون پیدا نشد','err'); return; }
@@ -4149,6 +4433,8 @@ function collectPdfSettings(){
     sizeQText: parseFloat(document.getElementById('pdfSizeQText').value)||7.5,
     sizeOpt: parseFloat(document.getElementById('pdfSizeOpt').value)||7,
     sizeMeta: parseFloat(document.getElementById('pdfSizeMeta').value)||6,
+    sizeSection: parseFloat((document.getElementById('pdfSizeSection')||{}).value)||9,
+    includeAnswers: !!(document.getElementById('pdfIncludeAnswers')||{}).checked,
     weightBold: document.getElementById('pdfWeightBold').value||'bold',
     weightRegular: document.getElementById('pdfWeightRegular').value||'normal'
   };
@@ -4165,16 +4451,28 @@ async function startExamPdfDownload(){
     savePdfGlobalDefaults();
     return;
   }
-  if(!_pdfExamData || !_pdfExamData.questions || !_pdfExamData.questions.length){
+  if(_pdfMode === 'bank'){
+    if(!_pdfBankData || !_pdfBankData.sections || !_pdfBankData.sections.length){
+      toast('سوالی برای خروجی وجود ندارد','err'); return;
+    }
+  } else if(!_pdfExamData || !_pdfExamData.questions || !_pdfExamData.questions.length){
     toast('سوالی برای خروجی وجود ندارد','err'); return;
   }
   var settings = collectPdfSettings();
   var dlId = 'dl_' + Date.now() + '_' + Math.floor(Math.random()*9999);
+  var metaLine;
+  if(_pdfMode === 'bank' && _pdfBankData){
+    var nSec = (_pdfBankData.sections||[]).length;
+    var nQ = (_pdfBankData.sections||[]).reduce(function(a,s){ return a+(s.questions||[]).length; },0);
+    metaLine = 'بانک سوال · ' + nSec + ' بخش · ' + nQ + ' سوال' + (settings.includeAnswers ? ' · پاسخ‌نامه' : '');
+  } else {
+    metaLine = settings.examType + ' · ' + settings.level + ' · ' + settings.duration + ' · ' + (_pdfExamData.questions||[]).length + ' سوال';
+  }
   var entry = {
     id: dlId,
-    examId: _pdfExamData.id,
-    name: settings.examName || _pdfExamData.name,
-    meta: settings.examType + ' · ' + settings.level + ' · ' + settings.duration + ' · ' + _pdfExamData.questions.length + ' سوال',
+    examId: _pdfExamData && _pdfExamData.id,
+    name: settings.examName || (_pdfExamData && _pdfExamData.name) || 'PDF',
+    meta: metaLine,
     status: 'generating',
     progress: 0,
     ts: Date.now(),
@@ -4198,9 +4496,16 @@ async function startExamPdfDownload(){
     updateDlProgress(dlId, 8);
     var JsPDF = await ensureJsPdf();
     updateDlProgress(dlId, 18);
-    var pdfBlob = await buildExamPdfBlob(JsPDF, _pdfExamData, settings, function(p){
-      updateDlProgress(dlId, 18 + Math.floor(p * 0.7));
-    });
+    var pdfBlob;
+    if(_pdfMode === 'bank' && _pdfBankData){
+      pdfBlob = await buildBankPdfBlob(JsPDF, _pdfBankData, settings, function(p){
+        updateDlProgress(dlId, 18 + Math.floor(p * 0.7));
+      });
+    } else {
+      pdfBlob = await buildExamPdfBlob(JsPDF, _pdfExamData, settings, function(p){
+        updateDlProgress(dlId, 18 + Math.floor(p * 0.7));
+      });
+    }
     updateDlProgress(dlId, 92);
     // to base64 for storage
     var b64 = await blobToBase64(pdfBlob);
