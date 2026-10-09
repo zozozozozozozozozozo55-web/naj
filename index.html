@@ -4105,6 +4105,10 @@ function savePdfDownloads(list){ return savePdfDownloadsMeta(list); }
 function idbOpen(){
   return new Promise(function(resolve, reject){
     try{
+      if(typeof indexedDB === 'undefined' || !indexedDB){
+        reject(new Error('IndexedDB unavailable'));
+        return;
+      }
       var req = indexedDB.open(PDF_IDB_NAME, 1);
       req.onupgradeneeded = function(ev){
         var db = ev.target.result;
@@ -4161,8 +4165,15 @@ function idbDeletePdf(id){
 }
 async function getPdfDownloadData(id){
   try{
+    if(window._pdfBlobMem && window._pdfBlobMem[id]) return window._pdfBlobMem[id];
+  }catch(e){}
+  try{
     var row = await idbGetPdf(id);
-    if(row && row.data) return row.data;
+    if(row && row.data){
+      window._pdfBlobMem = window._pdfBlobMem || {};
+      window._pdfBlobMem[id] = row.data;
+      return row.data;
+    }
   }catch(e){ console.warn('idb get', e); }
   return null;
 }
@@ -4510,7 +4521,11 @@ function openBankPdfSettings(bankId){
       questions: allQs.reduce(function(a,s){ return a.concat(s.questions); }, [])
     };
     _pdfDefaultsMode = false;
+    _pdfGenerating = false;
+    _pdfMode = 'bank';
     setPdfBankMode(true);
+    var startBtn = document.getElementById('pdfStartDownloadBtn');
+    if(startBtn){ startBtn.style.display = ''; startBtn.disabled = false; }
     var back = document.getElementById('pdfSettingsBackBtn');
     if(back) back.setAttribute('onclick', "setPdfBankMode(false);openQuestionBanks()");
     var saveBtn = document.getElementById('pdfSaveDefaultsBtn');
@@ -4987,67 +5002,116 @@ function ensureJsPdf(){
   return new Promise(function(resolve, reject){
     if(window.jspdf && window.jspdf.jsPDF){ resolve(window.jspdf.jsPDF); return; }
     if(window.jsPDF){ resolve(window.jsPDF); return; }
-    var s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-    s.onload = function(){
-      if(window.jspdf && window.jspdf.jsPDF) resolve(window.jspdf.jsPDF);
-      else if(window.jsPDF) resolve(window.jsPDF);
-      else reject(new Error('jsPDF load failed'));
-    };
-    s.onerror = function(){ reject(new Error('jsPDF network error')); };
-    document.head.appendChild(s);
+    var urls = [
+      'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+      'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+      'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'
+    ];
+    var idx = 0;
+    function tryNext(){
+      if(idx >= urls.length){
+        reject(new Error('بارگذاری کتابخانه PDF ناموفق — اینترنت را بررسی کنید'));
+        return;
+      }
+      var s = document.createElement('script');
+      s.src = urls[idx++];
+      var done = false;
+      var t = setTimeout(function(){
+        if(done) return;
+        done = true;
+        try{ s.remove(); }catch(e){}
+        tryNext();
+      }, 12000);
+      s.onload = function(){
+        if(done) return;
+        done = true;
+        clearTimeout(t);
+        if(window.jspdf && window.jspdf.jsPDF) resolve(window.jspdf.jsPDF);
+        else if(window.jsPDF) resolve(window.jsPDF);
+        else tryNext();
+      };
+      s.onerror = function(){
+        if(done) return;
+        done = true;
+        clearTimeout(t);
+        tryNext();
+      };
+      document.head.appendChild(s);
+    }
+    tryNext();
   });
 }
 
 function collectPdfSettings(){
-  var s = {
-    headerTitle: (document.getElementById('pdfHeaderTitle').value||'AIRCRAFT MAINTENANCE EXAMINATION').trim(),
-    examName: (document.getElementById('pdfExamName').value||'').trim(),
-    examType: document.getElementById('pdfExamType').value,
-    level: (function(){
-      if(isPdfLevelAuto() && _pdfExamData && _pdfExamData.questions){
-        return computeAvgDifficulty(_pdfExamData.questions);
-      }
-      return (document.getElementById('pdfExamLevel').value||'B1').trim();
-    })(),
-    levelAuto: isPdfLevelAuto(),
-    duration: (document.getElementById('pdfExamDuration').value||'60 min').trim(),
-    org: 'I.P.A',
-    logoSize: parseFloat(document.getElementById('pdfLogoSize').value)||17,
-    sizeTitle: parseFloat(document.getElementById('pdfSizeTitle').value)||9,
-    sizeSubtitle: parseFloat(document.getElementById('pdfSizeSubtitle').value)||6.5,
-    sizeQNum: parseFloat(document.getElementById('pdfSizeQNum').value)||8,
-    sizeQText: parseFloat(document.getElementById('pdfSizeQText').value)||7.5,
-    sizeOpt: parseFloat(document.getElementById('pdfSizeOpt').value)||7,
-    sizeMeta: parseFloat(document.getElementById('pdfSizeMeta').value)||6,
-    sizeSection: parseFloat((document.getElementById('pdfSizeSection')||{}).value)||9,
-    includeAnswers: !!(document.getElementById('pdfIncludeAnswers')||{}).checked,
-    weightBold: (document.getElementById('pdfWeightBold')||{}).value||'bold',
-    weightQText: (document.getElementById('pdfWeightQText')||{}).value||'normal',
-    weightOpt: (document.getElementById('pdfWeightOpt')||{}).value||'normal',
-    weightRegular: (document.getElementById('pdfWeightQText')||{}).value||'normal',
-    watermarkText: ((document.getElementById('pdfWatermarkText')||{}).value||'ANSWER KEY · CONFIDENTIAL · I.P.A').trim(),
-    autoDuration: isPdfAutoDuration()
-  };
+  function val(id, def){
+    try{
+      var el = document.getElementById(id);
+      if(!el) return def;
+      var v = el.value;
+      if(v == null || v === '') return def;
+      return v;
+    }catch(e){ return def; }
+  }
+  function num(id, def){
+    var n = parseFloat(val(id, def));
+    return isNaN(n) ? def : n;
+  }
+  function chk(id){
+    try{
+      var el = document.getElementById(id);
+      return !!(el && el.checked);
+    }catch(e){ return false; }
+  }
+  var level = val('pdfExamLevel', 'B1').trim();
   try{
-    localStorage.setItem('ipa_pdf_font_prefs', JSON.stringify(s));
-    localStorage.setItem('ipa_pdf_default_level', s.level);
+    if(typeof isPdfLevelAuto === 'function' && isPdfLevelAuto() && _pdfExamData && _pdfExamData.questions){
+      level = computeAvgDifficulty(_pdfExamData.questions);
+    }
   }catch(e){}
-  return s;
+  return {
+    headerTitle: String(val('pdfHeaderTitle', 'AIRCRAFT MAINTENANCE EXAMINATION')).trim(),
+    examName: String(val('pdfExamName', '')).trim(),
+    examType: String(val('pdfExamType', 'EXAM')).trim() || 'EXAM',
+    level: level,
+    levelAuto: (typeof isPdfLevelAuto === 'function') ? !!isPdfLevelAuto() : false,
+    duration: String(val('pdfExamDuration', '60 min')).trim(),
+    org: 'I.P.A',
+    logoSize: num('pdfLogoSize', 17),
+    sizeTitle: num('pdfSizeTitle', 9),
+    sizeSubtitle: num('pdfSizeSubtitle', 6.5),
+    sizeQNum: num('pdfSizeQNum', 8),
+    sizeQText: num('pdfSizeQText', 7.5),
+    sizeOpt: num('pdfSizeOpt', 7),
+    sizeMeta: num('pdfSizeMeta', 6.5),
+    sizeSection: num('pdfSizeSection', 10),
+    sizeAnswer: num('pdfSizeAnswer', 8),
+    weightBold: (typeof getPdfWeight === 'function' ? getPdfWeight('bold') : null) || 'bold',
+    weightQText: (typeof getPdfWeight === 'function' ? getPdfWeight('qtext') : null) || 'normal',
+    weightOpt: (typeof getPdfWeight === 'function' ? getPdfWeight('opt') : null) || 'normal',
+    includeAnswers: chk('pdfIncludeAnswers'),
+    watermarkText: String(val('pdfWatermarkText', 'ANSWER KEY · CONFIDENTIAL · I.P.A')).trim(),
+    autoDuration: (typeof isPdfAutoDuration === 'function') ? !!isPdfAutoDuration() : false
+  };
 }
 
 async function startExamPdfDownload(){
   if(_pdfGenerating){ toast('در حال ساخت PDF...','err'); return; }
-  if(_pdfDefaultsMode){
-    // defaults mode should use Save button, not Download
+  // if user has real exam/bank data, force download mode (ignore stuck defaults flag)
+  var hasBank = _pdfBankData && _pdfBankData.sections && _pdfBankData.sections.length;
+  var hasExam = _pdfExamData && _pdfExamData.questions && _pdfExamData.questions.length;
+  if(_pdfDefaultsMode && !hasBank && !hasExam){
     try{
       if(_pdfMode === 'bank') saveBankPdfDefaults();
       else savePdfGlobalDefaults();
     }catch(e){ console.warn(e); }
     return;
   }
+  _pdfDefaultsMode = false;
   // snapshot mode BEFORE any UI changes
-  var buildMode = _pdfMode;
+  var buildMode = (_pdfMode === 'bank' && hasBank) ? 'bank' : 'exam';
+  if(hasBank && _pdfMode === 'bank') buildMode = 'bank';
+  else if(hasExam) buildMode = 'exam';
+  else if(hasBank) buildMode = 'bank';
   var buildBank = _pdfBankData;
   var buildExam = _pdfExamData;
   if(buildMode === 'bank'){
@@ -5059,7 +5123,12 @@ async function startExamPdfDownload(){
       toast('سوالی برای خروجی وجود ندارد','err'); return;
     }
   }
-  var settings = collectPdfSettings();
+  var settings;
+  try{ settings = collectPdfSettings(); }
+  catch(e){ console.error(e); toast('خطا در خواندن تنظیمات','err'); return; }
+  if(!settings.examName){
+    settings.examName = (buildMode==='bank' ? (buildBank && buildBank.name) : (buildExam && buildExam.name)) || 'exam';
+  }
   var dlId = 'dl_' + Date.now() + '_' + Math.floor(Math.random()*9999);
   var metaLine;
   if(buildMode === 'bank' && buildBank){
@@ -5130,8 +5199,12 @@ async function startExamPdfDownload(){
       await idbPutPdf(dlId, b64, entry.filename, pdfAccountKey());
     }catch(e){
       console.warn('idb put failed', e);
-      toast('هشدار: ذخیره محلی فایل ناموفق بود — فایل روی دستگاه ذخیره می‌شود','err');
+      window._pdfBlobMem = window._pdfBlobMem || {};
+      window._pdfBlobMem[dlId] = b64;
     }
+    // always keep memory copy for this session
+    window._pdfBlobMem = window._pdfBlobMem || {};
+    window._pdfBlobMem[dlId] = b64;
 
     var items = loadPdfDownloadsMeta();
     var it = items.find(function(x){ return x.id===dlId; });
@@ -5162,7 +5235,9 @@ async function startExamPdfDownload(){
     var it = items.find(function(x){ return x.id===dlId; });
     if(it){ it.status = 'error'; it.progress = 0; savePdfDownloadsMeta(items); }
     renderDownloadsList();
-    toast('خطا در ساخت PDF: '+(e && e.message ? e.message : e),'err');
+    var msg = (e && e.message) ? String(e.message) : String(e||'نامشخص');
+    toast('خطا در ساخت PDF: '+msg,'err');
+    _pdfGenerating = false;
   }finally{
     _pdfGenerating = false;
   }
