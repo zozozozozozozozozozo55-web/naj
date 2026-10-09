@@ -718,7 +718,8 @@ body.dark .dl-progress-wrap{background:#2a2e3a}
   flex-shrink:0;font-size:12px;font-weight:700;color:var(--err);font-variant-numeric:tabular-nums;min-width:42px;text-align:left;direction:ltr;order:3
 }
 #takeExamPage .q-card .q-line{
-  display:flex;gap:6px;align-items:flex-start;margin-bottom:10px
+  display:flex;gap:6px;align-items:flex-start;margin-bottom:10px;
+  direction:ltr;width:100%
 }
 #takeExamPage .q-card .q-num{
   flex-shrink:0;font-size:14px;font-weight:700;color:var(--primary2);
@@ -735,6 +736,11 @@ body.dark .dl-progress-wrap{background:#2a2e3a}
 #takeExamPage .q-card .q-text{font-size:14px;line-height:1.55;margin-bottom:8px}
 #takeExamPage.page.top{padding-top:0 !important}
 #takeExamBackBtn.legacy-hidden{display:none !important}
+
+
+.exam-list-card.compact{direction:rtl}
+.exam-list-card.compact .exam-icon-btns{order:0;margin-left:0;margin-right:0}
+.exam-list-card.compact .exam-main{order:1;text-align:right}
 
 </style>
 </head>
@@ -3330,11 +3336,11 @@ async function openExamList(mode){
         const qs=Array.isArray(ex.questions)?ex.questions:(typeof ex.questions==='string'?JSON.parse(ex.questions):[]);
         const activeQs=qs.filter(q=>q && q.enabled!==false);
         return `<div class="exam-list-card compact" onclick="startExamFlow(${ex.id},'practice')">
+          ${userExamActionHtml(ex)}
           <div class="exam-main">
             <div class="ename">${escapeHtml(ex.name)}</div>
             <div class="emeta">${activeQs.length} سوال · بدون زمان</div>
           </div>
-          ${userExamActionHtml(ex)}
         </div>`;
       }).join('');
       return;
@@ -3375,11 +3381,11 @@ async function openExamList(mode){
       if(st.passed) statusLine = ' · قبول '+st.best+'٪';
       else if(st.attempted) statusLine = ' · بهترین '+st.best+'٪';
       return `<div class="${cls} exam-list-card compact" onclick="startExamFlow(${ex.id},'exam')">
+        ${userExamActionHtml(ex)}
         <div class="exam-main">
           <div class="ename">${escapeHtml(ex.name)}</div>
           <div class="emeta">${n} سوال · ${timeTxt}${statusLine}</div>
         </div>
-        ${userExamActionHtml(ex)}
       </div>`;
     }).join('');
   }catch(e){ console.error(e); list.innerHTML='<div class="empty">خطا</div>'; }
@@ -4583,6 +4589,7 @@ async function shareDownloadedPdf(id){
 }
 
 function updateDlProgress(id, pct, light){
+  if(window._dlFinished && window._dlFinished[id] && pct < 100) return;
   pct = Math.min(100, Math.max(0, Number(pct)||0));
   var bar = document.getElementById('dlbar_'+id);
   if(bar){
@@ -4590,7 +4597,10 @@ function updateDlProgress(id, pct, light){
     bar.style.transition = light ? 'none' : 'width .2s ease';
   }
   var wrap = document.getElementById('dlprogwrap_'+id);
-  if(wrap) wrap.style.display = '';
+  if(wrap){
+    if(pct >= 100) wrap.style.display = 'none';
+    else wrap.style.display = '';
+  }
   if(!window._dlMem) window._dlMem = {};
   window._dlMem[id] = pct;
   // avoid heavy localStorage writes during long builds (especially large banks)
@@ -4729,34 +4739,43 @@ async function startExamPdfDownload(){
     } else {
       pdfBlob = await buildExamPdfBlob(JsPDF, buildExam, settings, onProg);
     }
-    // UI mode cleanup after build
     try{ setPdfBankMode(false); }catch(e){}
     if(_pdfCancelId === dlId) throw new Error('CANCELLED');
-    updateDlProgress(dlId, 92);
+
+    // lock finished — prevent progress bar restart
+    window._dlFinished = window._dlFinished || {};
+    window._dlFinished[dlId] = true;
+    updateDlProgress(dlId, 100, false);
     await yieldToUI();
-    var b64 = await blobToBase64(pdfBlob);
-    if(_pdfCancelId === dlId) throw new Error('CANCELLED');
+
+    var b64 = null;
+    try{ b64 = await blobToBase64(pdfBlob); }catch(e){ console.warn('b64', e); }
+
     var items = loadPdfDownloads();
     var it = items.find(function(x){ return x.id===dlId; });
     if(it){
       it.status = 'done';
       it.progress = 100;
-      it.data = b64;
-      it.size = pdfBlob.size;
-      savePdfDownloads(items);
+      it.size = pdfBlob && pdfBlob.size;
+      if(b64 && b64.length < 1500000) it.data = b64;
+      else it.data = it.data || null;
+      try{ savePdfDownloads(items); }catch(e){}
     }
     renderDownloadsList();
-    await triggerBlobDownload(pdfBlob, entry.filename);
+    try{ await triggerBlobDownload(pdfBlob, entry.filename); }catch(e){ console.warn(e); }
     toast('PDF آماده شد','ok');
   }catch(e){
     if(String(e && e.message) === 'CANCELLED'){
-      // already removed by cancelPdfGeneration
       return;
     }
     console.error(e);
+    // if already finished successfully, ignore late errors (e.g. storage quota)
+    if(window._dlFinished && window._dlFinished[dlId]){
+      return;
+    }
     var items = loadPdfDownloads();
     var it = items.find(function(x){ return x.id===dlId; });
-    if(it){ it.status = 'error'; it.progress = 0; savePdfDownloads(items); }
+    if(it){ it.status = 'error'; it.progress = 0; try{ savePdfDownloads(items); }catch(e2){} }
     renderDownloadsList();
     toast('خطا در ساخت PDF: '+(e.message||e),'err');
   }finally{
