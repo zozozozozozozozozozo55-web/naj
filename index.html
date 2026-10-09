@@ -999,6 +999,16 @@ body.dark .dl-progress-wrap{background:#2a2e3a}
     </div>
     <div class="input-group"><label>مدت زمان (Duration)</label>
       <input type="text" id="pdfExamDuration" placeholder="مثلاً 90 min" dir="ltr" style="direction:ltr;text-align:left">
+      <div class="level-default-row" id="pdfAutoDurationRow">
+        <div>
+          <div style="font-weight:600;font-size:13px">تنظیم زمان خودکار</div>
+          <div class="hint">اگر روشن باشد، زمان ثبت‌شده در مدیریت آزمون در این باکس می‌آید</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="pdfAutoDuration" onchange="onPdfAutoDurationToggle(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
     </div>
     <div class="input-group"><label>سازمان</label>
       <input type="text" id="pdfOrg" value="I.P.A" readonly style="opacity:.7;direction:ltr;text-align:left" dir="ltr">
@@ -1083,13 +1093,22 @@ body.dark .dl-progress-wrap{background:#2a2e3a}
     <div class="settings-box" onclick="openManagerPdfDefaults()">
       <div class="sb-head">
         <div style="flex:1;text-align:right;padding-left:10px">
-          <div class="sb-title">تنظیمات دانلود</div>
-          <div class="sb-desc">برای ویرایش پیش‌فرض‌های PDF روی این باکس بزنید</div>
+          <div class="sb-title">تنظیمات دانلود آزمون</div>
+          <div class="sb-desc">پیش‌فرض‌های PDF آزمون — روی باکس بزنید</div>
         </div>
         <label class="switch" onclick="event.stopPropagation()">
           <input type="checkbox" id="pdfSettingsToggle" onchange="onPdfSettingsToggle(this.checked)">
           <span class="slider"></span>
         </label>
+      </div>
+    </div>
+
+    <div class="settings-box" onclick="openManagerBankPdfDefaults()">
+      <div class="sb-head">
+        <div style="flex:1;text-align:right;padding-left:10px">
+          <div class="sb-title">تنظیمات دانلود بانک سوال</div>
+          <div class="sb-desc">پیش‌فرض‌های PDF بانک سوال برای مدیر و ادمین‌ها</div>
+        </div>
       </div>
     </div>
 
@@ -1256,6 +1275,13 @@ body.dark .dl-progress-wrap{background:#2a2e3a}
         <div class="hint">اگر روشن باشد، کاربر در لیست آزمون دکمه دانلود و اشتراک می‌بیند</div>
       </div>
       <label class="switch"><input type="checkbox" id="editExamUserDl"><span class="slider"></span></label>
+    </div>
+    <div class="row-between" style="margin-bottom:14px">
+      <div>
+        <div style="font-weight:600">نمایش به صورت رندوم</div>
+        <div class="hint">سوالات هر بار با ترتیب تصادفی به کاربر نشان داده می‌شود (پیش‌فرض خاموش)</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="editExamRandom"><span class="slider"></span></label>
     </div>
     <h3 style="font-size:14px;color:var(--muted);margin-bottom:10px">سوالات</h3>
     <div id="editQuestions"></div>
@@ -3023,6 +3049,8 @@ async function createNewExam(){
   document.getElementById('editExamEnabled').checked=true;
   var udl0 = document.getElementById('editExamUserDl');
   if(udl0) udl0.checked = false;
+  var rnd0 = document.getElementById('editExamRandom');
+  if(rnd0) rnd0.checked = false;
   if(typeof selectExamType==='function') selectExamType('both');
   else {
     const hv=document.getElementById('editExamTypeVal');
@@ -3048,6 +3076,8 @@ async function openEditExam(id){
     try{ meta = JSON.parse(localStorage.getItem('ipa_exam_meta_'+ex.id)||'{}'); }catch(e){}
     var udl = document.getElementById('editExamUserDl');
     if(udl) udl.checked = !!(ex.user_download || ex.allow_user_download || meta.user_download);
+    var rnd = document.getElementById('editExamRandom');
+    if(rnd) rnd.checked = !!(ex.random_order || ex.random || meta.random_order);
     const typ=ex.type||'both';
     if(typeof selectExamType==='function') selectExamType(typ);
     else {
@@ -3240,6 +3270,7 @@ async function saveExamEdit(){
   const type=(document.getElementById('editExamTypeVal')||{}).value||'both';
   const enabled=document.getElementById('editExamEnabled').checked;
   const userDownload = !!(document.getElementById('editExamUserDl')||{}).checked;
+  const randomOrder = !!(document.getElementById('editExamRandom')||{}).checked;
   const raw=collectQuestionsFromEditors();
   const questions=raw.filter(function(q){ return q.text && (q.options||[]).filter(Boolean).length>=2; });
   questions.forEach(function(q){ q.options = q.options.filter(Boolean); });
@@ -3252,7 +3283,7 @@ async function saveExamEdit(){
     return;
   }
   try{
-    const payload={ name:name, time_limit:time, type:type, enabled:enabled, questions:questions, pass_percent:passPct, user_download:userDownload };
+    const payload={ name:name, time_limit:time, type:type, enabled:enabled, questions:questions, pass_percent:passPct, user_download:userDownload, random_order:randomOrder };
     try{
       if(editingExamId){
         await sbUpdate('exams','id=eq.'+editingExamId, payload);
@@ -3271,12 +3302,12 @@ async function saveExamEdit(){
       }
       try{
         var metaKey='ipa_exam_meta_'+editingExamId;
-        localStorage.setItem(metaKey, JSON.stringify({ user_download:userDownload }));
+        localStorage.setItem(metaKey, JSON.stringify({ user_download:userDownload, random_order:randomOrder }));
       }catch(e2){}
     }
     try{
       if(editingExamId){
-        localStorage.setItem('ipa_exam_meta_'+editingExamId, JSON.stringify({ user_download:userDownload }));
+        localStorage.setItem('ipa_exam_meta_'+editingExamId, JSON.stringify({ user_download:userDownload, random_order:randomOrder }));
       }
     }catch(e3){}
     invalidateExamsCache();
@@ -3430,24 +3461,29 @@ function shuffleArray(arr){
   }
   return a;
 }
-function prepareShuffledQuestions(qs){
-  // فقط سوالات فعال
+function prepareShuffledQuestions(qs, randomOrder){
+  // فقط سوالات فعال — برای ادمین همیشه ترتیب ثابت؛ برای کاربر در صورت روشن بودن کلید رندوم
   const active = (qs||[]).filter(function(q){ return q && q.enabled !== false; });
   const mapped = active.map(function(q, origIdx){
     const opts = (q.options||[]).map(function(text, oi){ return { text:text, orig:oi }; });
-    const shuffled = shuffleArray(opts);
-    const newCorrect = shuffled.findIndex(function(o){ return o.orig === q.correct; });
+    // گزینه‌ها همیشه برای کاربر کمی جابه‌جا می‌شوند فقط وقتی رندوم روشن است
+    const useOpts = randomOrder ? shuffleArray(opts) : opts;
+    const newCorrect = useOpts.findIndex(function(o){ return o.orig === q.correct; });
     return {
       text: q.text,
-      options: shuffled.map(function(o){ return o.text; }),
+      options: useOpts.map(function(o){ return o.text; }),
       correct: newCorrect >= 0 ? newCorrect : 0,
       origIndex: origIdx
     };
   });
-  return shuffleArray(mapped);
+  return randomOrder ? shuffleArray(mapped) : mapped;
 }
 function beginExam(ex, qs, mode){
-  const prepared = prepareShuffledQuestions(qs);
+  var meta = {};
+  try{ meta = JSON.parse(localStorage.getItem('ipa_exam_meta_'+ex.id)||'{}'); }catch(e){}
+  var randomOn = !!(ex.random_order || ex.random || meta.random_order);
+  // فقط برای کاربر؛ ادمین/مدیر اگر آزمون بدهند هم از همین مسیر می‌آیند - رندوم طبق تنظیم آزمون
+  const prepared = prepareShuffledQuestions(qs, randomOn);
   activeExam={ exam:ex, questions:prepared, mode:mode, startedAt: Date.now() };
   answers={};
   stopExamTimer();
@@ -3460,6 +3496,9 @@ function beginExam(ex, qs, mode){
   if(mode==='exam' && ex.time_limit>0){
     examEndsAt = Date.now() + ex.time_limit*60*1000;
     examTimer=setInterval(updateExamTimer, 500);
+  } else if(mode==='practice'){
+    examEndsAt = null;
+    examTimer=setInterval(updateExamTimer, 500); // elapsed timer
   } else {
     examEndsAt = null;
   }
@@ -3484,12 +3523,31 @@ function stopExamTimer(){
 }
 
 function updateExamTimer(){
-  const left=Math.max(0, examEndsAt-Date.now());
-  const m=Math.floor(left/60000);
-  const s=Math.floor((left%60000)/1000);
   const el=document.getElementById('timerStat');
-  if(el) el.textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
-  if(left<=0){ stopExamTimer(); finishExam(true); }
+  if(!el) return;
+  if(examEndsAt){
+    // countdown
+    const left=Math.max(0, examEndsAt-Date.now());
+    const m=Math.floor(left/60000);
+    const s=Math.floor((left%60000)/1000);
+    el.style.display = '';
+    el.textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    if(left<=0){ stopExamTimer(); finishExam(true); }
+  } else if(activeExam && activeExam.startedAt){
+    // elapsed (practice)
+    const elapsed = Math.max(0, Date.now() - activeExam.startedAt);
+    const m=Math.floor(elapsed/60000);
+    const s=Math.floor((elapsed%60000)/1000);
+    el.style.display = '';
+    el.textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  }
+}
+function formatDurationMs(ms){
+  ms = Math.max(0, ms|0);
+  var m = Math.floor(ms/60000);
+  var s = Math.floor((ms%60000)/1000);
+  if(m <= 0) return s + ' ثانیه';
+  return m + ' دقیقه و ' + s + ' ثانیه';
 }
 
 function renderTakeExam(){
@@ -3501,7 +3559,7 @@ function renderTakeExam(){
   if(fracEl) fracEl.textContent = answeredN + '/' + qs.length;
   var timerEl = document.getElementById('timerStat');
   if(timerEl){
-    if(mode==='exam' && examEndsAt){
+    if((mode==='exam' && examEndsAt) || mode==='practice'){
       timerEl.style.display = '';
       updateExamTimer();
     } else {
@@ -3605,7 +3663,7 @@ async function finishExam(auto){
     <p>حداقل قبولی: ${passPct}٪</p>
     <p>درست: <b style="color:var(--ok)">${correct}</b> · غلط: <b style="color:var(--err)">${wrong}</b> · بی‌پاسخ: <b>${unanswered}</b></p>
     <p class="score-formula">سوزاندن: هر ۳ غلط = ۱ درست (${score.burned} سوخته) → مؤثر: ${score.effective} از ${qs.length}</p>
-    <p style="margin-top:10px;font-size:12px;color:var(--muted)" id="resultAttemptLine">زمان پایان: ${fmtTime(finishedAt)}</p>
+    <p style="margin-top:10px;font-size:12px;color:var(--muted)" id="resultAttemptLine">مدت آزمون: ${formatDurationMs(finishedAt - startedAt)}</p>
     <button class="btn btn-secondary" style="margin-top:12px" onclick="showReview('blank')">مرور سوالات</button>
     <button class="btn btn-primary" style="margin-top:10px" onclick="showReview('answers')">مشاهده پاسخ‌ها</button>
   `;
@@ -3623,7 +3681,7 @@ async function finishExam(auto){
       }catch(e){}
       try{
         var line=document.getElementById('resultAttemptLine');
-        if(line) line.textContent = 'زمان پایان: '+fmtTime(finishedAt)+' · تلاش شماره '+attemptNo;
+        if(line) line.textContent = 'مدت آزمون: '+formatDurationMs(finishedAt - startedAt)+' · تلاش شماره '+attemptNo;
       }catch(e){}
       const payload={
         username: currentUser.username,
@@ -3642,7 +3700,7 @@ async function finishExam(auto){
   } else {
     try{
       var line=document.getElementById('resultAttemptLine');
-      if(line) line.textContent = 'آزمون آزمایشی · زمان: '+fmtTime(finishedAt)+' · در آمار ثبت نشد';
+      if(line) line.textContent = 'آزمون آزمایشی · مدت: '+formatDurationMs(finishedAt - startedAt)+' · در آمار ثبت نشد';
     }catch(e){}
   }
 }
@@ -3891,14 +3949,27 @@ async function userDownloadExam(examId){
     const rows = await sbGet('exams','select=*&id=eq.'+examId);
     const ex = rows && rows[0];
     if(!ex){ toast('آزمون پیدا نشد','err'); return; }
-    if(!(ex.user_download || ex.allow_user_download)){ toast('دانلود این آزمون برای کاربر فعال نیست','err'); return; }
+    var meta = {};
+    try{ meta = JSON.parse(localStorage.getItem('ipa_exam_meta_'+ex.id)||'{}'); }catch(e){}
+    if(!(ex.user_download || ex.allow_user_download || meta.user_download)){
+      toast('دانلود این آزمون برای کاربر فعال نیست','err'); return;
+    }
     let qs = Array.isArray(ex.questions) ? ex.questions : (typeof ex.questions==='string' ? JSON.parse(ex.questions) : []);
     qs = (qs||[]).filter(function(q){ return q && q.enabled !== false; });
+    var randomOn = !!(ex.random_order || ex.random || meta.random_order);
+    if(randomOn) qs = shuffleArray(qs.slice());
+    _pdfMode = 'exam';
+    _pdfBankData = null;
     _pdfExamData = { id:ex.id, name:ex.name||'', type:ex.type||'exam', time_limit:ex.time_limit||0, questions:qs };
     _pdfDefaultsMode = false;
     var defs = loadPdfGlobalDefaults();
     if(!defs.examName) defs.examName = _pdfExamData.name;
-    if(!defs.duration) defs.duration = _pdfExamData.time_limit ? (_pdfExamData.time_limit+' min') : '60 min';
+    // auto duration
+    if(defs.autoDuration || isPdfAutoDuration()){
+      defs.duration = _pdfExamData.time_limit ? (_pdfExamData.time_limit+' min') : (defs.duration||'60 min');
+    } else if(!defs.duration){
+      defs.duration = _pdfExamData.time_limit ? (_pdfExamData.time_limit+' min') : '60 min';
+    }
     if(!defs.examType) defs.examType = mapExamTypeForPdf(_pdfExamData.type);
     if(ex.level_mode==='average') defs.level = computeAvgDifficulty(qs);
     else if(ex.exam_level) defs.level = String(ex.exam_level);
@@ -4011,7 +4082,11 @@ function loadPdfGlobalDefaults(){
 }
 function savePdfGlobalDefaults(){
   var s = collectPdfSettings();
+  s.autoDuration = isPdfAutoDuration();
   localStorage.setItem('ipa_pdf_global_defaults', JSON.stringify(s));
+  // restore bank save button handler if needed
+  var saveBtn = document.getElementById('pdfSaveDefaultsBtn');
+  if(saveBtn) saveBtn.setAttribute('onclick', 'savePdfGlobalDefaults()');
   toast('پیش‌فرض‌ها ذخیره شد','ok');
 }
 function openManagerSettings(){
@@ -4054,6 +4129,50 @@ function onPdfLevelAutoToggle(on){
 }
 function isPdfLevelAuto(){
   return localStorage.getItem('ipa_pdf_level_auto') === '1';
+}
+
+
+function loadBankPdfDefaults(){
+  try{ return JSON.parse(localStorage.getItem('ipa_pdf_bank_defaults')||'{}'); }catch(e){ return {}; }
+}
+function saveBankPdfDefaults(){
+  var s = collectPdfSettings();
+  localStorage.setItem('ipa_pdf_bank_defaults', JSON.stringify(s));
+  toast('پیش‌فرض بانک سوال ذخیره شد','ok');
+}
+function openManagerBankPdfDefaults(){
+  _pdfExamData = null;
+  _pdfBankData = null;
+  _pdfDefaultsMode = true;
+  _pdfMode = 'bank';
+  setPdfBankMode(true);
+  fillPdfSettingsForm(loadBankPdfDefaults(), { name:'', type:'exam', time_limit:0 });
+  var hint = document.getElementById('pdfSettingsHint');
+  if(hint) hint.textContent = 'این مقادیر پیش‌فرض دانلود بانک سوال برای مدیر و ادمین‌هاست. ذخیره را بزنید.';
+  var saveBtn = document.getElementById('pdfSaveDefaultsBtn');
+  if(saveBtn){
+    saveBtn.style.display = '';
+    saveBtn.textContent = 'ذخیره پیش‌فرض بانک سوال';
+    saveBtn.setAttribute('onclick', 'saveBankPdfDefaults()');
+  }
+  var dlBtn = document.getElementById('pdfFixedDlBtn');
+  if(dlBtn) dlBtn.classList.remove('show');
+  var back = document.getElementById('pdfSettingsBackBtn');
+  if(back) back.setAttribute('onclick', "setPdfBankMode(false);_pdfDefaultsMode=false;openManagerSettings()");
+  showPage('pdfSettingsPage');
+}
+function isPdfAutoDuration(){
+  return localStorage.getItem('ipa_pdf_auto_duration') === '1';
+}
+function setPdfAutoDuration(on){
+  localStorage.setItem('ipa_pdf_auto_duration', on ? '1' : '0');
+}
+function onPdfAutoDurationToggle(on){
+  setPdfAutoDuration(!!on);
+  if(on && _pdfExamData && _pdfExamData.time_limit){
+    var d = document.getElementById('pdfExamDuration');
+    if(d) d.value = _pdfExamData.time_limit + ' min';
+  }
 }
 
 function openManagerPdfDefaults(){
@@ -4141,6 +4260,17 @@ function fillPdfSettingsForm(pref, examLike){
   selectPdfWeight('opt', pref.weightOpt || pref.weightRegular || 'normal');
   var wm = document.getElementById('pdfWatermarkText');
   if(wm) wm.value = pref.watermarkText || 'ANSWER KEY · CONFIDENTIAL · I.P.A';
+  var ad = document.getElementById('pdfAutoDuration');
+  var autoD = pref.autoDuration != null ? !!pref.autoDuration : isPdfAutoDuration();
+  if(ad) ad.checked = autoD;
+  if(autoD) setPdfAutoDuration(true);
+  if(autoD && examData && examData.time_limit){
+    var d = document.getElementById('pdfExamDuration');
+    if(d) d.value = examData.time_limit + ' min';
+  }
+  // hide auto-duration for bank mode
+  var adr = document.getElementById('pdfAutoDurationRow');
+  if(adr) adr.style.display = (_pdfMode === 'bank') ? 'none' : '';
 }
 var _pdfDefaultsMode = false;
 
@@ -4199,10 +4329,11 @@ function openBankPdfSettings(bankId){
 
     var last = {};
     try{ last = JSON.parse(localStorage.getItem('ipa_pdf_font_prefs')||'{}'); }catch(e){}
+    var bankDefs = loadBankPdfDefaults();
     var defs = loadPdfGlobalDefaults();
-    var merged = Object.assign({}, defs, last);
-    merged.examName = bank.name || 'Question Bank';
-    merged.headerTitle = merged.headerTitle || 'QUESTION BANK';
+    var merged = Object.assign({}, defs, bankDefs, last);
+    merged.examName = bank.name || bankDefs.examName || 'Question Bank';
+    merged.headerTitle = bankDefs.headerTitle || merged.headerTitle || 'QUESTION BANK';
     merged.examType = 'EXAM';
     merged.duration = '—';
     fillPdfSettingsForm(merged, _pdfExamData);
@@ -4467,6 +4598,11 @@ async function openPdfSettings(examId){
     if(!ex){ toast('آزمون پیدا نشد','err'); return; }
     let qs = Array.isArray(ex.questions) ? ex.questions : (typeof ex.questions==='string' ? JSON.parse(ex.questions) : []);
     qs = (qs||[]).filter(function(q){ return q && q.enabled !== false; });
+    var metaR = {};
+    try{ metaR = JSON.parse(localStorage.getItem('ipa_exam_meta_'+ex.id)||'{}'); }catch(e){}
+    if(ex.random_order || ex.random || metaR.random_order){
+      qs = shuffleArray(qs.slice());
+    }
     _pdfExamData = {
       id: ex.id,
       name: ex.name || '',
@@ -4507,7 +4643,11 @@ async function openPdfSettings(examId){
     var defs = loadPdfGlobalDefaults();
     var merged = Object.assign({}, defs, last);
     if(!merged.examName) merged.examName = _pdfExamData.name;
-    if(!merged.duration) merged.duration = _pdfExamData.time_limit ? (_pdfExamData.time_limit + ' min') : '60 min';
+    if(merged.autoDuration || isPdfAutoDuration()){
+      merged.duration = _pdfExamData.time_limit ? (_pdfExamData.time_limit + ' min') : (merged.duration || '60 min');
+    } else if(!merged.duration){
+      merged.duration = _pdfExamData.time_limit ? (_pdfExamData.time_limit + ' min') : '60 min';
+    }
     if(!merged.examType) merged.examType = mapExamTypeForPdf(_pdfExamData.type);
     fillPdfSettingsForm(merged, _pdfExamData);
     showPage('pdfSettingsPage');
@@ -4567,8 +4707,7 @@ function renderDownloadsList(){
     if(it.status==='done') memPct = 100;
     return '<div class="'+cls+'" id="dlitem_'+it.id+'">'
       + '<div class="dl-title" dir="'+titleDir+'">'+escapeHtml(titleName)+'</div>'
-      + '<div class="dl-meta">'+escapeHtml(it.meta||'')+' · '+statusTxt
-      + (it.ts ? ' · '+fmtTime(it.ts) : '')+'</div>'
+      + '<div class="dl-meta">'+escapeHtml(it.meta||'')+' · '+statusTxt+'</div>'
       + (showProg
         ? ('<div class="dl-progress-wrap" id="dlprogwrap_'+it.id+'"><div class="dl-progress-bar" id="dlbar_'+it.id+'" style="width:'+memPct+'%"></div></div>')
         : '')
@@ -4678,7 +4817,8 @@ function collectPdfSettings(){
     weightQText: (document.getElementById('pdfWeightQText')||{}).value||'normal',
     weightOpt: (document.getElementById('pdfWeightOpt')||{}).value||'normal',
     weightRegular: (document.getElementById('pdfWeightQText')||{}).value||'normal',
-    watermarkText: ((document.getElementById('pdfWatermarkText')||{}).value||'ANSWER KEY · CONFIDENTIAL · I.P.A').trim()
+    watermarkText: ((document.getElementById('pdfWatermarkText')||{}).value||'ANSWER KEY · CONFIDENTIAL · I.P.A').trim(),
+    autoDuration: isPdfAutoDuration()
   };
   try{
     localStorage.setItem('ipa_pdf_font_prefs', JSON.stringify(s));
@@ -4785,7 +4925,7 @@ async function startExamPdfDownload(){
     }
     renderDownloadsList();
     try{ await triggerBlobDownload(pdfBlob, entry.filename); }catch(e){ console.warn(e); }
-    toast('PDF آماده شد','ok');
+    /* single toast */ toast('دانلود موفقیت‌آمیز بود','ok');
   }catch(e){
     if(String(e && e.message) === 'CANCELLED'){
       return;
@@ -4883,7 +5023,6 @@ function triggerBlobDownload(blob, filename){
   return blobToBase64(blob).then(function(dataUrl){
     var pure = (dataUrl.split(',')[1] || '');
     if(callAndroidDownload(pure, filename)){
-      toast('فایل در پوشه Downloads ذخیره شد','ok');
       return true;
     }
     // 2) Standard browser download (works in Chrome, not in plain WebView)
@@ -4945,36 +5084,37 @@ function openDownloadedPdf(id){
 function redownloadPdf(id){
   var items = loadPdfDownloads();
   var it = items.find(function(x){ return x.id===id; });
-  if(!it || !it.data){ toast('فایل موجود نیست','err'); return; }
-  // show progress bar again
-  var wrap = document.getElementById('dlprogwrap_'+id);
-  var bar = document.getElementById('dlbar_'+id);
-  var card = document.getElementById('dlitem_'+id);
-  if(wrap){ wrap.style.display = ''; }
-  if(bar){ bar.style.width = '0%'; }
-  if(card){ card.classList.remove('done'); card.classList.add('generating'); }
+  if(!it || !it.data){ toast('فایل موجود نیست — دوباره از منبع دانلود کنید','err'); return; }
+  if(window._dlFinished) delete window._dlFinished[id];
+  if(window._dlMem) window._dlMem[id] = 0;
+  // mark generating and re-render so progress bar exists
+  it.status = 'generating';
+  it.progress = 0;
+  try{ savePdfDownloads(items); }catch(e){}
+  renderDownloadsList();
   var pct = 0;
   var timer = setInterval(function(){
-    pct += 12;
-    if(pct >= 90){ clearInterval(timer); }
-    if(bar) bar.style.width = Math.min(90, pct) + '%';
-    updateDlProgress(id, Math.min(90, pct));
-  }, 80);
+    pct += 10;
+    if(pct >= 88){ clearInterval(timer); }
+    updateDlProgress(id, Math.min(88, pct), true);
+  }, 70);
   var blob = base64ToBlob(it.data.indexOf(',')>=0 ? it.data : ('data:application/pdf;base64,'+it.data));
   Promise.resolve(triggerBlobDownload(blob, it.filename||'exam.pdf')).then(function(){
     clearInterval(timer);
-    if(bar) bar.style.width = '100%';
-    updateDlProgress(id, 100);
-    setTimeout(function(){
-      if(wrap) wrap.style.display = 'none';
-      if(card){ card.classList.add('done'); card.classList.remove('generating'); }
-      var items2 = loadPdfDownloads();
-      var it2 = items2.find(function(x){ return x.id===id; });
-      if(it2){ it2.status = 'done'; it2.progress = 100; savePdfDownloads(items2); }
-    }, 400);
-  }).catch(function(){
+    if(window._dlFinished) window._dlFinished[id] = true;
+    else { window._dlFinished = {}; window._dlFinished[id] = true; }
+    updateDlProgress(id, 100, false);
+    var items2 = loadPdfDownloads();
+    var it2 = items2.find(function(x){ return x.id===id; });
+    if(it2){ it2.status = 'done'; it2.progress = 100; try{ savePdfDownloads(items2); }catch(e){} }
+    setTimeout(function(){ renderDownloadsList(); }, 280);
+  }).catch(function(e){
     clearInterval(timer);
-    if(wrap) wrap.style.display = 'none';
+    console.warn(e);
+    var items2 = loadPdfDownloads();
+    var it2 = items2.find(function(x){ return x.id===id; });
+    if(it2){ it2.status = 'done'; try{ savePdfDownloads(items2); }catch(e2){} }
+    renderDownloadsList();
   });
 }
 function deleteDownloadedPdf(id){
