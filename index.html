@@ -698,10 +698,11 @@ body.dark .dl-progress-wrap{background:#2a2e3a}
 /* compact exam top bar */
 #takeExamPage .exam-topbar{
   display:flex;align-items:center;gap:8px;
-  padding:8px 10px;max-width:100%;margin:0 auto;
-  position:sticky;top:0;z-index:20;background:var(--bg);
-  border-bottom:1px solid var(--border);min-height:44px;
-  direction:ltr; /* back stays physical left */
+  padding:7px 12px;width:100%;max-width:100%;margin:0;
+  position:sticky;top:0;z-index:20;background:var(--card);
+  border-bottom:1px solid var(--border);min-height:40px;
+  direction:ltr;box-sizing:border-box;
+  box-shadow:0 2px 10px rgba(0,0,0,.04);
 }
 #takeExamPage .exam-topbar .et-back{
   flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;order:0
@@ -3451,7 +3452,9 @@ function beginExam(ex, qs, mode){
   answers={};
   stopExamTimer();
   document.getElementById('takeExamName').textContent=ex.name;
-  document.getElementById('finishBar').style.display = mode==='exam' ? 'block' : 'none';
+  document.getElementById('finishBar').style.display = 'block';
+  var finBtn=document.querySelector('#finishBar .btn');
+  if(finBtn) finBtn.textContent = mode==='practice' ? 'پایان آزمون آزمایشی' : 'پایان آزمون';
   var backBtn=document.getElementById('takeExamBackBtn');
   if(backBtn) backBtn.style.display = '';
   if(mode==='exam' && ex.time_limit>0){
@@ -3558,9 +3561,14 @@ async function leaveExam(){
 }
 
 async function finishExam(auto){
-  if(!activeExam||activeExam.mode!=='exam') return;
+  if(!activeExam) return;
+  var isPractice = activeExam.mode==='practice';
   if(!auto){
-    const ok=await confirmModal('پایان آزمون','آیا مطمئن هستید که می‌خواهید آزمون را تمام کنید؟','پایان آزمون');
+    const ok=await confirmModal(
+      isPractice ? 'پایان آزمون آزمایشی' : 'پایان آزمون',
+      isPractice ? 'نتیجه این آزمون آزمایشی نمایش داده می‌شود (در آمار رسمی ثبت نمی‌شود). ادامه می‌دهید؟' : 'آیا مطمئن هستید که می‌خواهید آزمون را تمام کنید؟',
+      isPractice ? 'مشاهده نتیجه' : 'پایان آزمون'
+    );
     if(!ok) return;
   }
   stopExamTimer();
@@ -3571,7 +3579,7 @@ async function finishExam(auto){
   if(answeredCount === 0){
     activeExam=null;
     answers={};
-    toast('چون به هیچ سوالی پاسخ ندادید، این آزمون در آمار ثبت نشد','ok');
+    toast(isPractice ? 'به هیچ سوالی پاسخ ندادید' : 'چون به هیچ سوالی پاسخ ندادید، این آزمون در آمار ثبت نشد','ok');
     showPage('userMainPage');
     return;
   }
@@ -3593,7 +3601,7 @@ async function finishExam(auto){
   // نمایش فوری نتایج — بدون برگشت به صفحه آزمون
   document.getElementById('resultContent').innerHTML=`
     <div class="big" style="color:${passed?'var(--ok)':'var(--err)'}">${score.percent}٪</div>
-    <p style="font-weight:700;color:${passed?'var(--ok)':'var(--err)'}">${passed?'قبول شدید':'قبول نشدید'}</p>
+    <p style="font-weight:700;color:${passed?'var(--ok)':'var(--err)'}">${isPractice?(passed?'نتیجه آزمایشی: قبول':'نتیجه آزمایشی: مردود'):(passed?'قبول شدید':'قبول نشدید')}</p>
     <p>حداقل قبولی: ${passPct}٪</p>
     <p>درست: <b style="color:var(--ok)">${correct}</b> · غلط: <b style="color:var(--err)">${wrong}</b> · بی‌پاسخ: <b>${unanswered}</b></p>
     <p class="score-formula">سوزاندن: هر ۳ غلط = ۱ درست (${score.burned} سوخته) → مؤثر: ${score.effective} از ${qs.length}</p>
@@ -3605,31 +3613,38 @@ async function finishExam(auto){
   answers={};
   showPage('resultPage', { skipStack: true });
 
-  // ذخیره در پس‌زمینه بدون نگه داشتن کاربر روی صفحه آزمون
-  (async function(){
-    var attemptNo=1;
-    try{
-      const prev=await sbGet('exam_results','select=id&username=eq.'+encodeURIComponent(currentUser.username)+'&exam_id=eq.'+examRef.id);
-      attemptNo = ((prev&&prev.length)||0) + 1;
-    }catch(e){}
+  // ذخیره فقط برای آزمون رسمی
+  if(!isPractice){
+    (async function(){
+      var attemptNo=1;
+      try{
+        const prev=await sbGet('exam_results','select=id&username=eq.'+encodeURIComponent(currentUser.username)+'&exam_id=eq.'+examRef.id);
+        attemptNo = ((prev&&prev.length)||0) + 1;
+      }catch(e){}
+      try{
+        var line=document.getElementById('resultAttemptLine');
+        if(line) line.textContent = 'زمان پایان: '+fmtTime(finishedAt)+' · تلاش شماره '+attemptNo;
+      }catch(e){}
+      const payload={
+        username: currentUser.username,
+        exam_id: examRef.id,
+        exam_name: examRef.name,
+        started_at: new Date(startedAt).toISOString(),
+        finished_at: new Date(finishedAt).toISOString(),
+        correct: correct, wrong: wrong, unanswered: unanswered,
+        percent: score.percent,
+        effective_correct: score.effective,
+        passed: passed,
+        details: { correctIds: correctIds, wrongIds: wrongIds, unansweredIds: unansweredIds, answers: answersCopy, burned: score.burned, attemptNo: attemptNo, passPct: passPct }
+      };
+      try{ await sbInsert('exam_results', payload); }catch(e){ console.error(e); }
+    })();
+  } else {
     try{
       var line=document.getElementById('resultAttemptLine');
-      if(line) line.textContent = 'زمان پایان: '+fmtTime(finishedAt)+' · تلاش شماره '+attemptNo;
+      if(line) line.textContent = 'آزمون آزمایشی · زمان: '+fmtTime(finishedAt)+' · در آمار ثبت نشد';
     }catch(e){}
-    const payload={
-      username: currentUser.username,
-      exam_id: examRef.id,
-      exam_name: examRef.name,
-      started_at: new Date(startedAt).toISOString(),
-      finished_at: new Date(finishedAt).toISOString(),
-      correct: correct, wrong: wrong, unanswered: unanswered,
-      percent: score.percent,
-      effective_correct: score.effective,
-      passed: passed,
-      details: { correctIds: correctIds, wrongIds: wrongIds, unansweredIds: unansweredIds, answers: answersCopy, burned: score.burned, attemptNo: attemptNo, passPct: passPct }
-    };
-    try{ await sbInsert('exam_results', payload); }catch(e){ console.error(e); }
-  })();
+  }
 }
 function showReview(mode){
   const data=window._lastReview;
@@ -4533,7 +4548,7 @@ function renderDownloadsList(){
     var cls = 'dl-item compact-dl' + (it.status==='done' ? ' done' : ' generating');
     var statusTxt = it.status==='done' ? 'آماده' : (it.status==='error' ? 'خطا' : 'در حال ساخت...');
     var icons = '';
-    if(it.status==='done' && it.data){
+    if(it.status==='done'){
       icons = '<div class="dl-icon-row">'
         + '<button type="button" class="btn btn-primary btn-sm" onclick="openDownloadedPdf(\''+it.id+'\')">باز کردن</button>'
         + '<button type="button" class="exam-icon-btn" title="دانلود مجدد" onclick="redownloadPdf(\''+it.id+'\')">'+refreshSvg+'</button>'
@@ -4542,14 +4557,21 @@ function renderDownloadsList(){
         + '</div>';
     } else if(it.status==='generating'){
       icons = '<button type="button" class="btn btn-danger btn-sm dl-cancel-btn" onclick="cancelPdfGeneration(\''+it.id+'\')">لغو</button>';
+    } else if(it.status==='error'){
+      icons = '<button type="button" class="btn btn-danger btn-sm dl-cancel-btn" onclick="deleteDownloadedPdf(\''+it.id+'\')">حذف</button>';
     }
     var titleName = it.name||'آزمون';
     var titleDir = (typeof isMostlyEnglish==='function' && isMostlyEnglish(titleName)) ? 'ltr' : 'rtl';
+    var showProg = (it.status==='generating');
+    var memPct = (window._dlMem && window._dlMem[it.id] != null) ? window._dlMem[it.id] : pct;
+    if(it.status==='done') memPct = 100;
     return '<div class="'+cls+'" id="dlitem_'+it.id+'">'
       + '<div class="dl-title" dir="'+titleDir+'">'+escapeHtml(titleName)+'</div>'
       + '<div class="dl-meta">'+escapeHtml(it.meta||'')+' · '+statusTxt
       + (it.ts ? ' · '+fmtTime(it.ts) : '')+'</div>'
-      + '<div class="dl-progress-wrap" id="dlprogwrap_'+it.id+'" style="'+(it.status==='done'?'display:none':'')+'"><div class="dl-progress-bar" id="dlbar_'+it.id+'" style="width:'+pct+'%"></div></div>'
+      + (showProg
+        ? ('<div class="dl-progress-wrap" id="dlprogwrap_'+it.id+'"><div class="dl-progress-bar" id="dlbar_'+it.id+'" style="width:'+memPct+'%"></div></div>')
+        : '')
       + icons
       + '</div>';
   }).join('');
