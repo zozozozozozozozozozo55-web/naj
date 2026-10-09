@@ -1857,12 +1857,13 @@ async function doLogin(){
     const row=rows&&rows[0];
     if(!row || row.password!==p){ err.textContent='نام کاربری یا رمز اشتباه است'; return; }
     sbUpdate('exam_users','username=eq.'+encodeURIComponent(u),{ last_login: new Date().toISOString() }).catch(function(){});
-    currentUser={ username: row.username, password: row.password };
     isManager=false; currentAdmin=null;
-    document.getElementById('userWelcome').textContent=row.username;
+    resetAppRuntimeState();
+    currentUser={ username: row.username, password: row.password };
+    try{ document.getElementById('userWelcome').textContent=row.username; }catch(e){}
     updateMenuForPage('userMainPage');
-    _pageStack = [];
     showPage('userMainPage', { skipStack: true });
+    try{ loadExamFlagsMap().then(function(m){ window._examFlagsMap=m||{}; }).catch(function(){}); }catch(e){}
   }catch(e){
     console.error(e);
     err.style.color=''; err.textContent='خطا در ورود';
@@ -1887,29 +1888,41 @@ async function doAdminLogin(){
   const mp=await getManagerPass();
   if(p===mp){
     isManager=true; currentAdmin=null; currentUser=null;
-    _pageStack = [];
+    resetAppRuntimeState();
+    isManager=true;
     updateMenuForPage('managerPage');
     showPage('managerPage', { skipStack: true });
+    try{ hydratePdfDefaultsFromServer(); }catch(e){}
+    try{ loadExamFlagsMap().then(function(m){ window._examFlagsMap=m||{}; }).catch(function(){}); }catch(e){}
     return;
   }
   try{
-    // faster: filter by password if possible, else fetch all
     const rows=await sbGet('exam_admins','select=*');
-    const adm=(rows||[]).find(a=>a.password===p);
+    // ignore internal config rows stored as __cfg_* / __manager__
+    const adm=(rows||[]).find(function(a){
+      if(!a || !a.name || String(a.name).indexOf('__')===0) return false;
+      return a.password===p;
+    });
     if(!adm){ err.style.color=''; err.textContent='رمز اشتباه است'; return; }
-    // fire-and-forget last_login update for speed
     sbUpdate('exam_admins','name=eq.'+encodeURIComponent(adm.name),{ last_login: new Date().toISOString() }).catch(function(){});
     isManager=false; currentUser=null;
+    var permsObj = {};
+    try{
+      permsObj = typeof adm.perms==='string' ? JSON.parse(adm.perms||'{}') : (adm.perms||{});
+      if(!permsObj || typeof permsObj !== 'object') permsObj = {};
+    }catch(e){ permsObj = {}; }
+    resetAppRuntimeState();
     currentAdmin={
       name: adm.name,
       password: adm.password,
-      perms: typeof adm.perms==='string' ? JSON.parse(adm.perms||'{}') : (adm.perms||{}),
+      perms: permsObj,
       last_login: adm.last_login
     };
-    renderAdminPanel();
-    _pageStack = [];
+    try{ renderAdminPanel(); }catch(e){ console.warn(e); }
     updateMenuForPage('adminPage');
     showPage('adminPage', { skipStack: true });
+    try{ hydratePdfDefaultsFromServer(); }catch(e){}
+    try{ loadExamFlagsMap().then(function(m){ window._examFlagsMap=m||{}; }).catch(function(){}); }catch(e){}
   }catch(e){
     console.error(e);
     err.style.color='';
@@ -1921,10 +1934,43 @@ async function doAdminLogin(){
   }
 }
 
+
+function resetAppRuntimeState(){
+  try{ stopExamTimer(); }catch(e){}
+  try{
+    _pdfGenerating = false;
+    _pdfCancelId = null;
+    _pdfDefaultsMode = false;
+    _pdfMode = 'exam';
+    _pdfExamData = null;
+    _pdfBankData = null;
+  }catch(e){}
+  try{
+    _examsCache = null;
+    _examsCacheTs = 0;
+    _examsCachePromise = null;
+  }catch(e){}
+  try{
+    window._dlFinished = {};
+    window._dlMem = {};
+    window._examFlagsMap = {};
+    window._examSaving = false;
+    window._userLoggingIn = false;
+    window._adminLoggingIn = false;
+    window._pickQs = null;
+  }catch(e){}
+  try{ activeExam = null; answers = {}; }catch(e){}
+  try{ _pageStack = []; }catch(e){}
+  try{ if(typeof setPdfBankMode === 'function') setPdfBankMode(false); }catch(e){}
+  try{
+    var bar = document.getElementById('pdfFixedDlBtn');
+    if(bar) bar.classList.remove('show');
+  }catch(e){}
+}
+
 function logout(){
   currentUser=null; isManager=false; currentAdmin=null;
-  stopExamTimer();
-  _pageStack = [];
+  try{ resetAppRuntimeState(); }catch(e){ console.warn(e); }
   showPage('homePage', { skipStack: true });
 }
 
@@ -2921,25 +2967,47 @@ async function ensureSeedExams(){
 var _examsCache = null;
 var _examsCacheTs = 0;
 var _examsCachePromise = null;
+
+function parseExamQuestions(raw){
+  if(Array.isArray(raw)) return raw;
+  if(raw == null) return [];
+  if(typeof raw === 'string'){
+    try{
+      var p = JSON.parse(raw);
+      return Array.isArray(p) ? p : [];
+    }catch(e){ return []; }
+  }
+  return [];
+}
+
 async function fetchExamsCached(force){
   var now = Date.now();
-  if(!force && _examsCache && (now - _examsCacheTs) < 60000){
+  // only use cache if non-empty OR recently confirmed empty with force=false and short TTL
+  if(!force && Array.isArray(_examsCache) && _examsCache.length && (now - _examsCacheTs) < 60000){
     return _examsCache.slice();
   }
-  // coalesce concurrent requests
   if(!force && _examsCachePromise){
-    try{ return (await _examsCachePromise).slice(); }catch(e){}
+    try{
+      var waited = await _examsCachePromise;
+      return (waited && waited.slice) ? waited.slice() : [];
+    }catch(e){}
   }
   _examsCachePromise = (async function(){
-    // lighter select for list views (still need questions for counts - keep *)
-    var rows = await sbGet('exams','select=*&order=id.asc');
-    _examsCache = rows || [];
-    _examsCacheTs = Date.now();
-    return _examsCache;
+    try{
+      var rows = await sbGet('exams','select=*&order=id.asc');
+      _examsCache = Array.isArray(rows) ? rows : [];
+      _examsCacheTs = Date.now();
+      return _examsCache;
+    }catch(e){
+      console.error('fetchExams', e);
+      // don't poison cache with empty on network error if we had data
+      if(Array.isArray(_examsCache) && _examsCache.length) return _examsCache;
+      throw e;
+    }
   })();
   try{
     var r = await _examsCachePromise;
-    return r.slice();
+    return (r && r.slice) ? r.slice() : [];
   } finally {
     _examsCachePromise = null;
   }
@@ -2962,7 +3030,9 @@ async function openManageExams(){
   // seed in background, don't block
   try{ ensureSeedExams(); }catch(e){}
   try{
-    let rows=await fetchExamsCached(false);
+    let rows;
+    try{ rows=await fetchExamsCached(false); }
+    catch(e1){ rows=await fetchExamsCached(true); }
     if(!isManager){
       rows=(rows||[]).filter(ex=>{
         if(ex.type==='practice') return canP;
@@ -3351,7 +3421,6 @@ async function openExamList(mode){
   }
   try{ ensureSeedExams(); }catch(e){}
   try{
-    // merge cross-device exam flags
     try{
       var fmap = await loadExamFlagsMap();
       window._examFlagsMap = fmap || {};
@@ -3359,7 +3428,10 @@ async function openExamList(mode){
         try{ localStorage.setItem('ipa_exam_meta_'+id, JSON.stringify(fmap[id])); }catch(e){}
       });
     }catch(e){}
-    const rows=(await fetchExamsCached(false)).filter(function(ex){ return ex.enabled!==false; });
+    var rows;
+    try{ rows = await fetchExamsCached(false); }
+    catch(e1){ try{ rows = await fetchExamsCached(true); }catch(e2){ rows = []; toast('خطا در بارگذاری آزمون‌ها','err'); } }
+    rows = (rows||[]).filter(function(ex){ return ex.enabled!==false; });
     const filtered=(rows||[]).filter(ex=>{
       if(mode==='practice') return ex.type==='practice'||ex.type==='both';
       return ex.type==='exam'||ex.type==='both';
@@ -3978,8 +4050,8 @@ async function userDownloadExam(examId){
     if(!(ex.user_download || ex.allow_user_download || meta.user_download)){
       toast('دانلود این آزمون برای کاربر فعال نیست','err'); return;
     }
-    let qs = Array.isArray(ex.questions) ? ex.questions : (typeof ex.questions==='string' ? JSON.parse(ex.questions) : []);
-    qs = (qs||[]).filter(function(q){ return q && q.enabled !== false; });
+    let qs = parseExamQuestions(ex.questions);
+    qs = (qs||[]).filter(function(q){ return q && q.enabled !== false && (q.text||'').trim(); });
     var randomOn = !!(ex.random_order || ex.random || meta.random_order);
     if(randomOn) qs = shuffleArray(qs.slice());
     _pdfMode = 'exam';
@@ -4200,19 +4272,21 @@ async function loadSiteConfig(key, fallback){
   fallback = fallback || {};
   try{
     var local = localStorage.getItem(key);
-    if(local){ try{ fallback = Object.assign({}, fallback, JSON.parse(local)); }catch(e){} }
+    if(local){ try{ var lp=JSON.parse(local); if(lp&&typeof lp==='object') fallback = Object.assign({}, fallback, lp); }catch(e){} }
   }catch(e){}
   try{
     var rows = await sbGet('exam_admins','select=*&name=eq.'+encodeURIComponent('__cfg_'+key));
     if(rows && rows[0] && rows[0].password){
-      var remote = JSON.parse(rows[0].password);
-      if(remote && typeof remote === 'object'){
-        fallback = Object.assign({}, fallback, remote);
-        try{ localStorage.setItem(key, JSON.stringify(fallback)); }catch(e){}
-      }
+      try{
+        var remote = JSON.parse(rows[0].password);
+        if(remote && typeof remote === 'object' && !Array.isArray(remote)){
+          fallback = Object.assign({}, fallback, remote);
+          try{ localStorage.setItem(key, JSON.stringify(fallback)); }catch(e){}
+        }
+      }catch(e){}
     }
   }catch(e){}
-  return fallback;
+  return fallback || {};
 }
 async function saveSiteConfig(key, value){
   try{ localStorage.setItem(key, JSON.stringify(value)); }catch(e){}
@@ -4806,13 +4880,21 @@ async function openPdfSettings(examId){
     const rows = await sbGet('exams','select=*&id=eq.'+examId);
     const ex = rows && rows[0];
     if(!ex){ toast('آزمون پیدا نشد','err'); return; }
-    let qs = Array.isArray(ex.questions) ? ex.questions : (typeof ex.questions==='string' ? JSON.parse(ex.questions) : []);
-    qs = (qs||[]).filter(function(q){ return q && q.enabled !== false; });
+    let qs = parseExamQuestions(ex.questions);
+    qs = (qs||[]).filter(function(q){ return q && q.enabled !== false && (q.text||'').trim(); });
+    if(!qs.length){ toast('این آزمون سوال فعالی ندارد','err'); return; }
     var metaR = {};
     try{ metaR = JSON.parse(localStorage.getItem('ipa_exam_meta_'+ex.id)||'{}'); }catch(e){}
+    try{
+      if(window._examFlagsMap && window._examFlagsMap[String(ex.id)])
+        metaR = Object.assign({}, metaR, window._examFlagsMap[String(ex.id)]);
+    }catch(e){}
     if(ex.random_order || ex.random || metaR.random_order){
-      qs = shuffleArray(qs.slice());
+      try{ qs = shuffleArray(qs.slice()); }catch(e){}
     }
+    _pdfGenerating = false;
+    _pdfMode = 'exam';
+    _pdfBankData = null;
     _pdfExamData = {
       id: ex.id,
       name: ex.name || '',
