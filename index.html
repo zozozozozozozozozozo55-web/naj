@@ -4326,7 +4326,13 @@ async function getExamFlags(examId, ex){
 }
 
 function loadPdfGlobalDefaults(){
-  try{ return JSON.parse(localStorage.getItem('ipa_pdf_global_defaults')||'{}'); }catch(e){ return {}; }
+  try{
+    var o = JSON.parse(localStorage.getItem('ipa_pdf_global_defaults')||'{}');
+    if(!o || typeof o !== 'object') return {};
+    // examName is per-download, not a global default
+    if(o.examName != null) delete o.examName;
+    return o;
+  }catch(e){ return {}; }
 }
 async function hydratePdfDefaultsFromServer(){
   try{
@@ -4337,17 +4343,35 @@ async function hydratePdfDefaultsFromServer(){
   }catch(e){}
 }
 function savePdfGlobalDefaults(){
-  var s = collectPdfSettings();
-  s.autoDuration = isPdfAutoDuration();
-  try{ localStorage.setItem('ipa_pdf_global_defaults', JSON.stringify(s)); }catch(e){}
-  saveSiteConfig('ipa_pdf_global_defaults', s);
-  var saveBtn = document.getElementById('pdfSaveDefaultsBtn');
-  if(saveBtn){
-    saveBtn.setAttribute('onclick', 'savePdfGlobalDefaults()');
-    saveBtn.textContent = 'ذخیره به‌عنوان پیش‌فرض همه';
+  try{
+    var s = collectPdfSettings();
+    // never persist empty exam-specific name as global default
+    if(s){
+      delete s.examName;
+      s.autoDuration = (typeof isPdfAutoDuration==='function') ? isPdfAutoDuration() : !!s.autoDuration;
+    }
+    try{ localStorage.setItem('ipa_pdf_global_defaults', JSON.stringify(s||{})); }catch(e){}
+    try{ saveSiteConfig('ipa_pdf_global_defaults', s||{}); }catch(e){}
+    _pdfDefaultsMode = false;
+    _pdfExamData = null;
+    _pdfBankData = null;
+    _pdfMode = 'exam';
+    _pdfGenerating = false;
+    try{ setPdfBankMode(false); }catch(e){}
+    var saveBtn = document.getElementById('pdfSaveDefaultsBtn');
+    if(saveBtn){
+      saveBtn.setAttribute('onclick', 'savePdfGlobalDefaults()');
+      saveBtn.textContent = 'ذخیره پیش‌فرض آزمون';
+      saveBtn.style.display = 'none';
+    }
+    var bar = document.getElementById('pdfFixedDlBtn');
+    if(bar) bar.classList.remove('show');
+    toast('پیش‌فرض‌ها ذخیره شد','ok');
+    try{ openManagerSettings(); }catch(e){}
+  }catch(e){
+    console.error(e);
+    toast('خطا در ذخیره پیش‌فرض','err');
   }
-  _pdfDefaultsMode = false;
-  toast('پیش‌فرض‌ها ذخیره شد','ok');
 }
 function openManagerSettings(){
   showPage('managerSettingsPage');
@@ -4393,14 +4417,35 @@ function isPdfLevelAuto(){
 
 
 function loadBankPdfDefaults(){
-  try{ return JSON.parse(localStorage.getItem('ipa_pdf_bank_defaults')||'{}'); }catch(e){ return {}; }
+  try{
+    var o = JSON.parse(localStorage.getItem('ipa_pdf_bank_defaults')||'{}');
+    if(!o || typeof o !== 'object') return {};
+    if(o.examName != null) delete o.examName;
+    return o;
+  }catch(e){ return {}; }
 }
 function saveBankPdfDefaults(){
-  var s = collectPdfSettings();
-  try{ localStorage.setItem('ipa_pdf_bank_defaults', JSON.stringify(s)); }catch(e){}
-  saveSiteConfig('ipa_pdf_bank_defaults', s);
-  _pdfDefaultsMode = false;
-  toast('پیش‌فرض بانک سوال ذخیره شد','ok');
+  try{
+    var s = collectPdfSettings();
+    if(s) delete s.examName;
+    try{ localStorage.setItem('ipa_pdf_bank_defaults', JSON.stringify(s||{})); }catch(e){}
+    try{ saveSiteConfig('ipa_pdf_bank_defaults', s||{}); }catch(e){}
+    _pdfDefaultsMode = false;
+    _pdfExamData = null;
+    _pdfBankData = null;
+    _pdfMode = 'exam';
+    _pdfGenerating = false;
+    try{ setPdfBankMode(false); }catch(e){}
+    var saveBtn = document.getElementById('pdfSaveDefaultsBtn');
+    if(saveBtn) saveBtn.style.display = 'none';
+    var bar = document.getElementById('pdfFixedDlBtn');
+    if(bar) bar.classList.remove('show');
+    toast('پیش‌فرض بانک سوال ذخیره شد','ok');
+    try{ openManagerSettings(); }catch(e){}
+  }catch(e){
+    console.error(e);
+    toast('خطا در ذخیره پیش‌فرض بانک','err');
+  }
 }
 function openManagerBankPdfDefaults(){
   try{
@@ -4504,46 +4549,70 @@ function selectPdfWeight(which, val){
 }
 function fillPdfSettingsForm(pref, examLike){
   pref = pref || {};
-  document.getElementById('pdfHeaderTitle').value = pref.headerTitle || 'AIRCRAFT MAINTENANCE EXAMINATION';
-  document.getElementById('pdfExamName').value = pref.examName != null ? pref.examName : (examLike && examLike.name) || '';
-  var t = pref.examType || mapExamTypeForPdf((examLike && examLike.type) || 'exam');
-  selectPdfType(t);
-  document.getElementById('pdfExamLevel').value = pref.level || 'B1';
-  var auto = pref.levelAuto != null ? !!pref.levelAuto : isPdfLevelAuto();
-  var autoEl = document.getElementById('pdfLevelAuto');
-  if(autoEl) autoEl.checked = auto;
-  onPdfLevelAutoToggle(auto);
-  document.getElementById('pdfExamDuration').value = pref.duration || ((examLike && examLike.time_limit) ? (examLike.time_limit + ' min') : '60 min');
-  document.getElementById('pdfOrg').value = 'I.P.A';
-  var logo = pref.logoSize != null ? pref.logoSize : 17;
-  document.getElementById('pdfLogoSize').value = logo;
-  document.getElementById('pdfLogoSizeVal').textContent = logo + ' mm';
-  document.getElementById('pdfSizeTitle').value = pref.sizeTitle != null ? pref.sizeTitle : 9;
-  document.getElementById('pdfSizeSubtitle').value = pref.sizeSubtitle != null ? pref.sizeSubtitle : 6.5;
-  document.getElementById('pdfSizeQNum').value = pref.sizeQNum != null ? pref.sizeQNum : 8;
-  document.getElementById('pdfSizeQText').value = pref.sizeQText != null ? pref.sizeQText : 7.5;
-  document.getElementById('pdfSizeOpt').value = pref.sizeOpt != null ? pref.sizeOpt : 7;
-  document.getElementById('pdfSizeMeta').value = pref.sizeMeta != null ? pref.sizeMeta : 6;
-  var ss = document.getElementById('pdfSizeSection');
-  if(ss) ss.value = pref.sizeSection != null ? pref.sizeSection : 9;
-  var ia = document.getElementById('pdfIncludeAnswers');
-  if(ia) ia.checked = !!pref.includeAnswers;
-  selectPdfWeight('bold', pref.weightBold || 'bold');
-  selectPdfWeight('qtext', pref.weightQText || pref.weightRegular || 'normal');
-  selectPdfWeight('opt', pref.weightOpt || pref.weightRegular || 'normal');
-  var wm = document.getElementById('pdfWatermarkText');
-  if(wm) wm.value = pref.watermarkText || 'ANSWER KEY · CONFIDENTIAL · I.P.A';
-  var ad = document.getElementById('pdfAutoDuration');
-  var autoD = pref.autoDuration != null ? !!pref.autoDuration : isPdfAutoDuration();
-  if(ad) ad.checked = autoD;
-  if(autoD) setPdfAutoDuration(true);
-  if(autoD && examData && examData.time_limit){
-    var d = document.getElementById('pdfExamDuration');
-    if(d) d.value = examData.time_limit + ' min';
+  examLike = examLike || {};
+  function setVal(id, value){
+    try{
+      var el = document.getElementById(id);
+      if(el) el.value = value;
+    }catch(e){}
   }
-  // hide auto-duration for bank mode
-  var adr = document.getElementById('pdfAutoDurationRow');
-  if(adr) adr.style.display = (_pdfMode === 'bank') ? 'none' : '';
+  function setText(id, value){
+    try{
+      var el = document.getElementById(id);
+      if(el) el.textContent = value;
+    }catch(e){}
+  }
+  function setChk(id, on){
+    try{
+      var el = document.getElementById(id);
+      if(el) el.checked = !!on;
+    }catch(e){}
+  }
+  try{
+    setVal('pdfHeaderTitle', pref.headerTitle || 'AIRCRAFT MAINTENANCE EXAMINATION');
+    // empty string defaults must NOT block exam name
+    var examName = (pref.examName && String(pref.examName).trim()) || examLike.name || '';
+    setVal('pdfExamName', examName);
+    var t = pref.examType || mapExamTypeForPdf(examLike.type || 'exam');
+    try{ selectPdfType(t); }catch(e){ setVal('pdfExamType', t || 'EXAM'); }
+    setVal('pdfExamLevel', pref.level || 'B1');
+    var auto = pref.levelAuto != null ? !!pref.levelAuto : (typeof isPdfLevelAuto==='function' && isPdfLevelAuto());
+    setChk('pdfLevelAuto', auto);
+    try{ onPdfLevelAutoToggle(auto); }catch(e){}
+    var dur = (pref.duration && String(pref.duration).trim()) || (examLike.time_limit ? (examLike.time_limit + ' min') : '60 min');
+    setVal('pdfExamDuration', dur);
+    setVal('pdfOrg', 'I.P.A');
+    var logo = pref.logoSize != null ? Number(pref.logoSize) : 17;
+    if(isNaN(logo)) logo = 17;
+    setVal('pdfLogoSize', logo);
+    setText('pdfLogoSizeVal', logo + ' mm');
+    setVal('pdfSizeTitle', pref.sizeTitle != null ? pref.sizeTitle : 9);
+    setVal('pdfSizeSubtitle', pref.sizeSubtitle != null ? pref.sizeSubtitle : 6.5);
+    setVal('pdfSizeQNum', pref.sizeQNum != null ? pref.sizeQNum : 8);
+    setVal('pdfSizeQText', pref.sizeQText != null ? pref.sizeQText : 7.5);
+    setVal('pdfSizeOpt', pref.sizeOpt != null ? pref.sizeOpt : 7);
+    setVal('pdfSizeMeta', pref.sizeMeta != null ? pref.sizeMeta : 6);
+    setVal('pdfSizeSection', pref.sizeSection != null ? pref.sizeSection : 9);
+    setVal('pdfSizeAnswer', pref.sizeAnswer != null ? pref.sizeAnswer : 8);
+    setChk('pdfIncludeAnswers', !!pref.includeAnswers);
+    try{ selectPdfWeight('bold', pref.weightBold || 'bold'); }catch(e){}
+    try{ selectPdfWeight('qtext', pref.weightQText || pref.weightRegular || 'normal'); }catch(e){}
+    try{ selectPdfWeight('opt', pref.weightOpt || pref.weightRegular || 'normal'); }catch(e){}
+    setVal('pdfWatermarkText', pref.watermarkText || 'ANSWER KEY · CONFIDENTIAL · I.P.A');
+    var autoD = pref.autoDuration != null ? !!pref.autoDuration : (typeof isPdfAutoDuration==='function' && isPdfAutoDuration());
+    setChk('pdfAutoDuration', autoD);
+    if(autoD && typeof setPdfAutoDuration==='function') setPdfAutoDuration(true);
+    // BUGFIX: was examData (undefined) — must use examLike
+    if(autoD && examLike && examLike.time_limit){
+      setVal('pdfExamDuration', examLike.time_limit + ' min');
+    }
+    try{
+      var adr = document.getElementById('pdfAutoDurationRow');
+      if(adr) adr.style.display = (_pdfMode === 'bank') ? 'none' : '';
+    }catch(e){}
+  }catch(e){
+    console.error('fillPdfSettingsForm', e);
+  }
 }
 function setPdfBankMode(on){
   _pdfMode = on ? 'bank' : 'exam';
