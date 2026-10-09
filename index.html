@@ -743,6 +743,16 @@ body.dark .dl-progress-wrap{background:#2a2e3a}
 .exam-list-card.compact .exam-icon-btns{order:0;margin-left:0;margin-right:0}
 .exam-list-card.compact .exam-main{order:1;text-align:right}
 
+
+.radio-opt{align-items:flex-start}
+.radio-opt textarea[data-bopt]{
+  flex:1;width:100%;min-height:36px;max-height:160px;
+  padding:8px 10px;border-radius:10px;border:1px solid var(--border);
+  background:var(--card);color:var(--text);font:inherit;line-height:1.45;
+  white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere
+}
+.q-edit .radio-opt{margin-bottom:8px}
+
 </style>
 </head>
 <body>
@@ -1567,9 +1577,12 @@ function handleAndroidBack(){
       }
     }
     // fallback to role home
-    if(currentUser){ showPage('userMainPage', { skipStack: true }); return true; }
-    if(isManager){ showPage('managerPage', { skipStack: true }); return true; }
-    if(currentAdmin){ showPage('adminPage', { skipStack: true }); return true; }
+    if(currentUser){ showPage('userMainPage', { skipStack: true });
+    try{ loadExamFlagsMap().then(function(m){ window._examFlagsMap=m||{}; }); }catch(e){} return true; }
+    if(isManager){ showPage('managerPage', { skipStack: true });
+    try{ hydratePdfDefaultsFromServer(); loadExamFlagsMap().then(function(m){ window._examFlagsMap=m||{}; }); }catch(e){} return true; }
+    if(currentAdmin){ showPage('adminPage', { skipStack: true });
+    try{ hydratePdfDefaultsFromServer(); loadExamFlagsMap().then(function(m){ window._examFlagsMap=m||{}; }); }catch(e){} return true; }
     showPage('homePage', { skipStack: true });
     return true;
   }catch(e){
@@ -2403,7 +2416,7 @@ function renderSectionQuestions(qs, editable){
     const optHtml=opts.map(function(o,j){
       return `<div class="radio-opt">
         <input type="radio" name="bq_${i}" value="${j}" ${q.correct===j?'checked':''} ${can?'':'disabled'} onchange="markSectionDirty()">
-        <input type="text" data-bopt="${i}_${j}" value="${escapeHtml(o)}" dir="${dirAttr(o)}" ${can?'':'readonly'} oninput="markSectionDirty()">
+        <textarea data-bopt="${i}_${j}" rows="1" dir="${dirAttr(o)}" ${can?'':'readonly'} oninput="markSectionDirty();autoGrowArea(this)" style="width:100%;min-height:36px;resize:vertical;line-height:1.45">${escapeHtml(o)}</textarea>
       </div>`;
     }).join('');
     const diffMenu = can ? [1,2,3,4,5].map(function(n){
@@ -2480,7 +2493,7 @@ function collectBankQuestions(){
   const box=document.getElementById('editBankQuestions');
   return [...box.querySelectorAll('.q-edit')].map(function(block){
     const text=(block.querySelector('textarea')||{}).value||'';
-    const opts=[...block.querySelectorAll('input[data-bopt]')].map(function(i){ return i.value.trim(); });
+    const opts=[...block.querySelectorAll('[data-bopt]')].map(function(i){ return (i.value||'').trim(); });
     const radio=block.querySelector('input[type=radio]:checked');
     let correct=radio?parseInt(radio.value,10):0;
     const enEl=block.querySelector('input[data-qen]');
@@ -2615,7 +2628,7 @@ function togglePickQ(el, idx){
   const key=el.getAttribute('data-pkey')||('k'+idx);
   if(el.checked){
     if(!pickSelection.some(function(s){ return s._key===key; })){
-      pickSelection.push({ _key:key, text:q.text, options:(q.options||[]).slice(), correct:q.correct|0, enabled:true });
+      pickSelection.push({ _key:key, text:q.text, options:(q.options||[]).slice(), correct:q.correct|0, enabled:true, difficulty:(q.difficulty!=null?q.difficulty:3) });
     }
     el.closest('.pick-q').classList.add('selected');
   } else {
@@ -3303,11 +3316,13 @@ async function saveExamEdit(){
       try{
         var metaKey='ipa_exam_meta_'+editingExamId;
         localStorage.setItem(metaKey, JSON.stringify({ user_download:userDownload, random_order:randomOrder }));
+      try{ saveExamFlag(editingExamId|| (payload&&payload.id), { user_download:userDownload, random_order:randomOrder }); }catch(e){}
       }catch(e2){}
     }
     try{
       if(editingExamId){
         localStorage.setItem('ipa_exam_meta_'+editingExamId, JSON.stringify({ user_download:userDownload, random_order:randomOrder }));
+        try{ saveExamFlag(editingExamId, { user_download:userDownload, random_order:randomOrder }); }catch(e){}
       }
     }catch(e3){}
     invalidateExamsCache();
@@ -3336,6 +3351,14 @@ async function openExamList(mode){
   }
   try{ ensureSeedExams(); }catch(e){}
   try{
+    // merge cross-device exam flags
+    try{
+      var fmap = await loadExamFlagsMap();
+      window._examFlagsMap = fmap || {};
+      Object.keys(fmap||{}).forEach(function(id){
+        try{ localStorage.setItem('ipa_exam_meta_'+id, JSON.stringify(fmap[id])); }catch(e){}
+      });
+    }catch(e){}
     const rows=(await fetchExamsCached(false)).filter(function(ex){ return ex.enabled!==false; });
     const filtered=(rows||[]).filter(ex=>{
       if(mode==='practice') return ex.type==='practice'||ex.type==='both';
@@ -3935,6 +3958,7 @@ function backFromDownloads(){
 function userExamActionHtml(ex){
   var meta = {};
   try{ meta = JSON.parse(localStorage.getItem('ipa_exam_meta_'+ex.id)||'{}'); }catch(e){}
+  try{ if(window._examFlagsMap && window._examFlagsMap[String(ex.id)]) meta = Object.assign({}, meta, window._examFlagsMap[String(ex.id)]); }catch(e){}
   if(!(ex.user_download || ex.allow_user_download || meta.user_download)) return '';
   var dlSvg = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>';
   var shSvg = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>';
@@ -4044,21 +4068,64 @@ function pdfDownloadsStorageKey(){
   }catch(e){}
   return PDF_DL_KEY + '::' + who;
 }
+if(!window._pdfBlobMem) window._pdfBlobMem = {};
 function loadPdfDownloads(){
-  try{ return JSON.parse(localStorage.getItem(pdfDownloadsStorageKey())||'[]'); }catch(e){ return []; }
+  try{
+    var list = JSON.parse(localStorage.getItem(pdfDownloadsStorageKey())||'[]');
+    // never keep base64 in persisted list
+    return (list||[]).map(function(it){
+      var copy = Object.assign({}, it);
+      if(copy.data && copy.data.length > 500){
+        // migrate old huge entries out of storage on read
+        window._pdfBlobMem[copy.id] = copy.data;
+        delete copy.data;
+      }
+      // restore session blob if any
+      if(!copy.data && window._pdfBlobMem[copy.id]) copy._hasMem = true;
+      return copy;
+    });
+  }catch(e){ return []; }
 }
 function savePdfDownloads(list){
   try{
-    // strip heavy base64 if quota exceeded gradually
-    localStorage.setItem(pdfDownloadsStorageKey(), JSON.stringify(list));
+    var slim = (list||[]).map(function(it){
+      var o = {
+        id: it.id,
+        examId: it.examId,
+        name: it.name,
+        meta: it.meta,
+        status: it.status,
+        progress: it.progress,
+        ts: it.ts,
+        filename: it.filename,
+        size: it.size
+      };
+      // if data is small keep it; large goes to memory only
+      if(it.data && String(it.data).length < 200000){
+        o.data = it.data;
+      } else if(it.data){
+        window._pdfBlobMem[it.id] = it.data;
+      }
+      return o;
+    });
+    // max 15 items
+    if(slim.length > 15) slim = slim.slice(0, 15);
+    localStorage.setItem(pdfDownloadsStorageKey(), JSON.stringify(slim));
   }catch(e){
-    console.warn('downloads storage full', e);
+    console.warn('downloads storage', e);
     try{
-      // keep last 5 with data
-      var slim = (list||[]).slice(0,5);
-      localStorage.setItem(pdfDownloadsStorageKey(), JSON.stringify(slim));
-    }catch(e2){ console.warn(e2); }
+      var tiny = (list||[]).slice(0,3).map(function(it){
+        return { id:it.id, name:it.name, meta:it.meta, status:it.status||'done', progress:100, ts:it.ts, filename:it.filename };
+      });
+      localStorage.setItem(pdfDownloadsStorageKey(), JSON.stringify(tiny));
+    }catch(e2){}
   }
+}
+function getPdfDownloadData(id){
+  if(window._pdfBlobMem && window._pdfBlobMem[id]) return window._pdfBlobMem[id];
+  var items = loadPdfDownloads();
+  var it = items.find(function(x){ return x.id===id; });
+  return it && it.data ? it.data : null;
 }
 
 function mapExamTypeForPdf(t){
@@ -4077,16 +4144,85 @@ function isPdfSettingsEnabled(){
 function setPdfSettingsEnabled(on){
   localStorage.setItem('ipa_pdf_settings_enabled', on ? '1' : '0');
 }
+
+/** Persist settings cross-device via exam_admins config rows + localStorage cache */
+async function loadSiteConfig(key, fallback){
+  fallback = fallback || {};
+  try{
+    var local = localStorage.getItem(key);
+    if(local){ try{ fallback = Object.assign({}, fallback, JSON.parse(local)); }catch(e){} }
+  }catch(e){}
+  try{
+    var rows = await sbGet('exam_admins','select=*&name=eq.'+encodeURIComponent('__cfg_'+key));
+    if(rows && rows[0] && rows[0].password){
+      var remote = JSON.parse(rows[0].password);
+      if(remote && typeof remote === 'object'){
+        fallback = Object.assign({}, fallback, remote);
+        try{ localStorage.setItem(key, JSON.stringify(fallback)); }catch(e){}
+      }
+    }
+  }catch(e){}
+  return fallback;
+}
+async function saveSiteConfig(key, value){
+  try{ localStorage.setItem(key, JSON.stringify(value)); }catch(e){}
+  try{
+    // password field stores JSON blob; name is unique key
+    await sbUpsert('exam_admins', {
+      name: '__cfg_'+key,
+      password: JSON.stringify(value),
+      perms: '{}'
+    }, 'name');
+  }catch(e){
+    console.warn('site config remote save failed', e);
+  }
+}
+async function loadExamFlagsMap(){
+  return await loadSiteConfig('ipa_exam_flags_map', {});
+}
+async function saveExamFlag(examId, patch){
+  var map = await loadExamFlagsMap();
+  map[String(examId)] = Object.assign({}, map[String(examId)]||{}, patch||{});
+  await saveSiteConfig('ipa_exam_flags_map', map);
+  try{ localStorage.setItem('ipa_exam_meta_'+examId, JSON.stringify(map[String(examId)])); }catch(e){}
+}
+async function getExamFlags(examId, ex){
+  var meta = {};
+  try{ meta = JSON.parse(localStorage.getItem('ipa_exam_meta_'+examId)||'{}'); }catch(e){}
+  try{
+    var map = await loadExamFlagsMap();
+    if(map[String(examId)]) meta = Object.assign({}, meta, map[String(examId)]);
+  }catch(e){}
+  if(ex){
+    if(ex.user_download != null) meta.user_download = !!ex.user_download;
+    if(ex.allow_user_download != null) meta.user_download = meta.user_download || !!ex.allow_user_download;
+    if(ex.random_order != null) meta.random_order = !!ex.random_order;
+  }
+  return meta;
+}
+
 function loadPdfGlobalDefaults(){
   try{ return JSON.parse(localStorage.getItem('ipa_pdf_global_defaults')||'{}'); }catch(e){ return {}; }
+}
+async function hydratePdfDefaultsFromServer(){
+  try{
+    var g = await loadSiteConfig('ipa_pdf_global_defaults', loadPdfGlobalDefaults());
+    localStorage.setItem('ipa_pdf_global_defaults', JSON.stringify(g));
+    var b = await loadSiteConfig('ipa_pdf_bank_defaults', loadBankPdfDefaults());
+    localStorage.setItem('ipa_pdf_bank_defaults', JSON.stringify(b));
+  }catch(e){}
 }
 function savePdfGlobalDefaults(){
   var s = collectPdfSettings();
   s.autoDuration = isPdfAutoDuration();
-  localStorage.setItem('ipa_pdf_global_defaults', JSON.stringify(s));
-  // restore bank save button handler if needed
+  try{ localStorage.setItem('ipa_pdf_global_defaults', JSON.stringify(s)); }catch(e){}
+  saveSiteConfig('ipa_pdf_global_defaults', s);
   var saveBtn = document.getElementById('pdfSaveDefaultsBtn');
-  if(saveBtn) saveBtn.setAttribute('onclick', 'savePdfGlobalDefaults()');
+  if(saveBtn){
+    saveBtn.setAttribute('onclick', 'savePdfGlobalDefaults()');
+    saveBtn.textContent = 'ذخیره به‌عنوان پیش‌فرض همه';
+  }
+  _pdfDefaultsMode = false;
   toast('پیش‌فرض‌ها ذخیره شد','ok');
 }
 function openManagerSettings(){
@@ -4137,30 +4273,37 @@ function loadBankPdfDefaults(){
 }
 function saveBankPdfDefaults(){
   var s = collectPdfSettings();
-  localStorage.setItem('ipa_pdf_bank_defaults', JSON.stringify(s));
+  try{ localStorage.setItem('ipa_pdf_bank_defaults', JSON.stringify(s)); }catch(e){}
+  saveSiteConfig('ipa_pdf_bank_defaults', s);
+  _pdfDefaultsMode = false;
   toast('پیش‌فرض بانک سوال ذخیره شد','ok');
 }
 function openManagerBankPdfDefaults(){
-  _pdfExamData = null;
-  _pdfBankData = null;
-  _pdfDefaultsMode = true;
-  _pdfMode = 'bank';
-  setPdfBankMode(true);
-  fillPdfSettingsForm(loadBankPdfDefaults(), { name:'', type:'exam', time_limit:0 });
-  var hint = document.getElementById('pdfSettingsHint');
-  if(hint) hint.textContent = 'این مقادیر پیش‌فرض دانلود بانک سوال برای مدیر و ادمین‌هاست. ذخیره را بزنید.';
-  var saveBtn = document.getElementById('pdfSaveDefaultsBtn');
-  if(saveBtn){
-    saveBtn.style.display = '';
-    saveBtn.textContent = 'ذخیره پیش‌فرض بانک سوال';
-    saveBtn.setAttribute('onclick', 'saveBankPdfDefaults()');
-  }
-  var dlBtn = document.getElementById('pdfFixedDlBtn');
-  if(dlBtn) dlBtn.classList.remove('show');
-  var back = document.getElementById('pdfSettingsBackBtn');
-  if(back) back.setAttribute('onclick', "setPdfBankMode(false);_pdfDefaultsMode=false;openManagerSettings()");
-  showPage('pdfSettingsPage');
+  try{
+    _pdfExamData = null;
+    _pdfBankData = null;
+    _pdfDefaultsMode = true;
+    _pdfMode = 'bank';
+    if(typeof setPdfBankMode==='function') setPdfBankMode(true);
+    fillPdfSettingsForm(loadBankPdfDefaults(), { name:'', type:'exam', time_limit:0 });
+    var hint = document.getElementById('pdfSettingsHint');
+    if(hint) hint.textContent = 'پیش‌فرض دانلود بانک سوال — پس از ذخیره برای مدیر و ادمین‌ها روی همه دستگاه‌ها اعمال می‌شود.';
+    var saveBtn = document.getElementById('pdfSaveDefaultsBtn');
+    if(saveBtn){
+      saveBtn.style.display = '';
+      saveBtn.textContent = 'ذخیره پیش‌فرض بانک سوال';
+      saveBtn.setAttribute('onclick', 'saveBankPdfDefaults()');
+    }
+    var dlBtn = document.getElementById('pdfFixedDlBtn');
+    if(dlBtn) dlBtn.classList.remove('show');
+    var startBtn = document.getElementById('pdfStartDownloadBtn');
+    if(startBtn) startBtn.style.display = 'none';
+    var back = document.getElementById('pdfSettingsBackBtn');
+    if(back) back.setAttribute('onclick', "_pdfDefaultsMode=false;setPdfBankMode(false);openManagerSettings()");
+    showPage('pdfSettingsPage');
+  }catch(e){ console.error(e); toast('خطا در باز کردن تنظیمات بانک','err'); }
 }
+
 function isPdfAutoDuration(){
   return localStorage.getItem('ipa_pdf_auto_duration') === '1';
 }
@@ -4176,23 +4319,29 @@ function onPdfAutoDurationToggle(on){
 }
 
 function openManagerPdfDefaults(){
-  // open settings page in "defaults mode" (no exam download)
-  _pdfExamData = null;
-  _pdfDefaultsMode = true;
-  fillPdfSettingsForm(loadPdfGlobalDefaults(), {
-    name: '',
-    type: 'exam',
-    time_limit: 60
-  });
-  var hint = document.getElementById('pdfSettingsHint');
-  if(hint) hint.textContent = 'این مقادیر به‌عنوان پیش‌فرض ذخیره می‌شوند و وقتی کلید تنظیمات دانلود خاموش باشد استفاده می‌گردند.';
-  var saveBtn = document.getElementById('pdfSaveDefaultsBtn');
-  if(saveBtn) saveBtn.style.display = '';
-  var dlBtn = document.getElementById('pdfFixedDlBtn');
-  if(dlBtn) dlBtn.classList.remove('show');
-  var back = document.getElementById('pdfSettingsBackBtn');
-  if(back) back.setAttribute('onclick', "openManagerSettings()");
-  showPage('pdfSettingsPage');
+  try{
+    _pdfExamData = null;
+    _pdfBankData = null;
+    _pdfDefaultsMode = true;
+    _pdfMode = 'exam';
+    if(typeof setPdfBankMode==='function') setPdfBankMode(false);
+    fillPdfSettingsForm(loadPdfGlobalDefaults(), { name:'', type:'exam', time_limit:60 });
+    var hint = document.getElementById('pdfSettingsHint');
+    if(hint) hint.textContent = 'پیش‌فرض دانلود آزمون — پس از ذخیره روی همه دستگاه‌ها اعمال می‌شود.';
+    var saveBtn = document.getElementById('pdfSaveDefaultsBtn');
+    if(saveBtn){
+      saveBtn.style.display = '';
+      saveBtn.textContent = 'ذخیره پیش‌فرض آزمون';
+      saveBtn.setAttribute('onclick', 'savePdfGlobalDefaults()');
+    }
+    var dlBtn = document.getElementById('pdfFixedDlBtn');
+    if(dlBtn) dlBtn.classList.remove('show');
+    var startBtn = document.getElementById('pdfStartDownloadBtn');
+    if(startBtn) startBtn.style.display = 'none';
+    var back = document.getElementById('pdfSettingsBackBtn');
+    if(back) back.setAttribute('onclick', "_pdfDefaultsMode=false;setPdfBankMode(false);openManagerSettings()");
+    showPage('pdfSettingsPage');
+  }catch(e){ console.error(e); toast('خطا در باز کردن تنظیمات','err'); }
 }
 function onPdfSettingsBack(){
   if(_pdfDefaultsMode){ _pdfDefaultsMode = false; openManagerSettings(); return; }
@@ -4337,6 +4486,10 @@ function openBankPdfSettings(bankId){
     merged.examType = 'EXAM';
     merged.duration = '—';
     fillPdfSettingsForm(merged, _pdfExamData);
+    var startBtn = document.getElementById('pdfStartDownloadBtn');
+    if(startBtn) startBtn.style.display = '';
+    var saveBtn2 = document.getElementById('pdfSaveDefaultsBtn');
+    if(saveBtn2) saveBtn2.style.display = 'none';
     showPage('pdfSettingsPage');
     setTimeout(function(){
       var bar = document.getElementById('pdfFixedDlBtn');
@@ -4650,6 +4803,10 @@ async function openPdfSettings(examId){
     }
     if(!merged.examType) merged.examType = mapExamTypeForPdf(_pdfExamData.type);
     fillPdfSettingsForm(merged, _pdfExamData);
+    var startBtn = document.getElementById('pdfStartDownloadBtn');
+    if(startBtn) startBtn.style.display = '';
+    var saveBtn2 = document.getElementById('pdfSaveDefaultsBtn');
+    if(saveBtn2) saveBtn2.style.display = 'none';
     showPage('pdfSettingsPage');
     setTimeout(function(){
       var bar = document.getElementById('pdfFixedDlBtn');
@@ -4719,9 +4876,11 @@ function renderDownloadsList(){
 async function shareDownloadedPdf(id){
   var items = loadPdfDownloads();
   var it = items.find(function(x){ return x.id===id; });
-  if(!it || !it.data){ toast('فایل موجود نیست','err'); return; }
+  var data = getPdfDownloadData(id);
+  if(!it || !data){ toast('فایل در حافظه این نشست نیست — دوباره دانلود کنید','err'); return; }
+  it.data = data;
   var filename = it.filename || 'exam.pdf';
-  var pure = (it.data.indexOf(',') >= 0) ? it.data.split(',')[1] : it.data;
+  var pure = (data.indexOf(',') >= 0) ? data.split(',')[1] : data;
   // Android bridge share
   try{
     var b = getAndroidBridge && getAndroidBridge();
@@ -4861,11 +5020,11 @@ async function startExamPdfDownload(){
     data: null,
     filename: sanitizeFilename(settings.examName || 'exam') + '.pdf'
   };
-  var list = loadPdfDownloads();
+  var list = [];
+  try{ list = loadPdfDownloads(); }catch(e){ list = []; }
   list.unshift(entry);
-  // keep max 20
-  if(list.length > 20) list = list.slice(0, 20);
-  savePdfDownloads(list);
+  if(list.length > 15) list = list.slice(0, 15);
+  try{ savePdfDownloads(list); }catch(e){ console.warn(e); }
 
   // go to downloads page (skip stack so back won't return to settings)
   var bar = document.getElementById('pdfFixedDlBtn');
@@ -4919,8 +5078,12 @@ async function startExamPdfDownload(){
       it.status = 'done';
       it.progress = 100;
       it.size = pdfBlob && pdfBlob.size;
-      if(b64 && b64.length < 1500000) it.data = b64;
-      else it.data = it.data || null;
+      if(b64){
+        window._pdfBlobMem = window._pdfBlobMem || {};
+        window._pdfBlobMem[dlId] = b64;
+        if(b64.length < 200000) it.data = b64;
+        else delete it.data;
+      }
       try{ savePdfDownloads(items); }catch(e){}
     }
     renderDownloadsList();
@@ -5053,7 +5216,9 @@ function triggerBlobDownload(blob, filename){
 function openDownloadedPdf(id){
   var items = loadPdfDownloads();
   var it = items.find(function(x){ return x.id===id; });
-  if(!it || !it.data){ toast('فایل موجود نیست','err'); return; }
+  var data = getPdfDownloadData(id);
+  if(!it || !data){ toast('فایل در حافظه این نشست نیست — دوباره دانلود کنید','err'); return; }
+  it.data = data;
   var filename = it.filename || 'exam.pdf';
   var pure = (it.data.indexOf(',') >= 0) ? it.data.split(',')[1] : it.data;
 
@@ -5084,7 +5249,9 @@ function openDownloadedPdf(id){
 function redownloadPdf(id){
   var items = loadPdfDownloads();
   var it = items.find(function(x){ return x.id===id; });
-  if(!it || !it.data){ toast('فایل موجود نیست — دوباره از منبع دانلود کنید','err'); return; }
+  var data = getPdfDownloadData(id);
+  if(!it || !data){ toast('فایل در حافظه این نشست نیست — دوباره از منبع دانلود کنید','err'); return; }
+  it.data = data;
   if(window._dlFinished) delete window._dlFinished[id];
   if(window._dlMem) window._dlMem[id] = 0;
   // mark generating and re-render so progress bar exists
