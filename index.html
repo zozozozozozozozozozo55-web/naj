@@ -719,16 +719,52 @@ body.dark .dl-progress-wrap{background:#2a2e3a}
   flex-shrink:0;font-size:12px;font-weight:700;color:var(--err);font-variant-numeric:tabular-nums;min-width:42px;text-align:left;direction:ltr;order:3
 }
 #takeExamPage .q-card .q-line{
-  display:flex;gap:6px;align-items:flex-start;margin-bottom:10px;
-  direction:ltr;width:100%
+  margin-bottom:10px;direction:ltr;width:100%;text-align:left
 }
 #takeExamPage .q-card .q-num{
-  flex-shrink:0;font-size:14px;font-weight:700;color:var(--primary2);
-  direction:ltr;text-align:left;margin:0;line-height:1.55
+  display:inline;font-size:14px;font-weight:700;color:var(--primary2);
+  direction:ltr;margin:0;margin-right:6px;line-height:1.55
 }
 #takeExamPage .q-card .q-text{
-  flex:1;min-width:0;font-size:14px;line-height:1.55;margin:0
+  display:inline;font-size:14px;line-height:1.55;margin:0;
+  word-break:break-word;overflow-wrap:anywhere
 }
+#takeExamPage .q-card .q-text-block{
+  direction:ltr;text-align:left;line-height:1.55;font-size:14px;margin-bottom:10px
+}
+#takeExamPage .q-card .q-trans{
+  margin-top:8px;padding:8px 10px;border-radius:10px;
+  background:rgba(0,0,0,.04);color:var(--muted);font-size:13px;line-height:1.55;
+  direction:rtl;text-align:right;
+  animation:transIn .28s ease
+}
+body.dark #takeExamPage .q-card .q-trans{background:rgba(255,255,255,.06)}
+@keyframes transIn{from{opacity:0;max-height:0;transform:translateY(-4px)}to{opacity:1;max-height:200px;transform:none}}
+#takeExamPage .q-card .q-trans-btn{
+  position:absolute;top:8px;right:8px;
+  width:28px;height:28px;border-radius:8px;border:1px solid var(--border);
+  background:var(--card);color:var(--muted);font-size:14px;padding:0;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2
+}
+#takeExamPage .q-card .q-trans-btn.on{
+  background:rgba(108,92,231,.15);border-color:var(--primary2);color:var(--primary2)
+}
+#takeExamPage .q-card{position:relative}
+.q-edit .tr-toggle-btn{
+  width:28px;height:28px;border-radius:8px;border:1px solid var(--border);
+  background:var(--card);color:var(--muted);font-size:13px;padding:0;
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0
+}
+.q-edit .tr-toggle-btn.on{
+  background:rgba(108,92,231,.18);border-color:var(--primary2);color:var(--primary2)
+}
+.q-edit .q-trans-area{
+  width:100%;min-height:52px;margin-top:6px;padding:8px 10px;border-radius:10px;
+  border:1px dashed var(--border);background:rgba(0,0,0,.03);font:inherit;
+  direction:rtl;text-align:right;line-height:1.45;resize:vertical
+}
+body.dark .q-edit .q-trans-area{background:rgba(255,255,255,.04)}
+
 #takeExamPage #takeExamBody{
   max-width:100% !important;width:100%;padding:8px 8px 90px;margin:0 !important
 }
@@ -1292,6 +1328,13 @@ body.dark .dl-progress-wrap{background:#2a2e3a}
         <div class="hint">سوالات هر بار با ترتیب تصادفی به کاربر نشان داده می‌شود (پیش‌فرض خاموش)</div>
       </div>
       <label class="switch"><input type="checkbox" id="editExamRandom"><span class="slider"></span></label>
+    </div>
+    <div class="row-between" style="margin-bottom:14px">
+      <div>
+        <div style="font-weight:600">ترجمه</div>
+        <div class="hint">اگر روشن باشد، کاربر برای سوالاتی که دکمه ترجمه آن‌ها روشن است می‌تواند ترجمه را ببیند</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="editExamTranslation"><span class="slider"></span></label>
     </div>
     <h3 style="font-size:14px;color:var(--muted);margin-bottom:10px">سوالات</h3>
     <div id="editQuestions"></div>
@@ -2553,12 +2596,17 @@ function collectBankQuestions(){
     });
     var diffEl = block.querySelector('[data-diff]');
     var difficulty = diffEl ? (parseInt(diffEl.value,10)||3) : (parseInt(block.getAttribute('data-diff-val'),10)||3);
+    var textEl = block.querySelector('textarea[data-btext]');
+    var trEl = block.querySelector('textarea[data-btrans]');
+    var qtext = textEl ? (textEl.value||'') : text;
+    var translation = trEl ? (trEl.value||'').trim() : '';
     return {
-      text: text.trim(),
+      text: qtext.trim(),
       options: kept,
       correct: kept.length?newCorrect:0,
       enabled: enabled,
-      difficulty: Math.min(5,Math.max(1,difficulty))
+      difficulty: Math.min(5,Math.max(1,difficulty)),
+      translation: translation
     };
   });
 }
@@ -2674,7 +2722,7 @@ function togglePickQ(el, idx){
   const key=el.getAttribute('data-pkey')||('k'+idx);
   if(el.checked){
     if(!pickSelection.some(function(s){ return s._key===key; })){
-      pickSelection.push({ _key:key, text:q.text, options:(q.options||[]).slice(), correct:q.correct|0, enabled:true, difficulty:(q.difficulty!=null?q.difficulty:3) });
+      pickSelection.push({ _key:key, text:q.text, options:(q.options||[]).slice(), correct:q.correct|0, enabled:true, difficulty:(q.difficulty!=null?q.difficulty:3), translation:q.translation||'', translation_enabled:false });
     }
     el.closest('.pick-q').classList.add('selected');
   } else {
@@ -2711,7 +2759,7 @@ function applyPickSelection(){
   if(!pickSelection.length){ toast('سوالی انتخاب نشده','err'); return; }
   const current=collectQuestionsFromEditors();
   const added=pickSelection.map(function(q){
-    return { text:q.text, options:(q.options||[]).slice(), correct:q.correct|0, enabled:true, difficulty:q.difficulty||3 };
+    return { text:q.text, options:(q.options||[]).slice(), correct:q.correct|0, enabled:true, difficulty:q.difficulty||3, translation:q.translation||'', translation_enabled:!!q.translation_enabled };
   });
   renderQuestionEditors(current.concat(added));
   const n=added.length;
@@ -3281,12 +3329,18 @@ function collectQuestionsFromEditors(){
     });
     // هنگام ویرایش، سوال خالی را هم نگه می‌داریم تا مدیر بتواند پر کند
     var diffVal = parseInt(block.getAttribute('data-diff-val'),10)||3;
+    var trEl = block.querySelector('textarea[data-qtrans]');
+    var trBtn = block.querySelector('.tr-toggle-btn');
+    var translation = trEl ? (trEl.value||'').trim() : '';
+    var translation_enabled = trBtn ? trBtn.classList.contains('on') : false;
     return {
       text: text.trim(),
       options: kept.length ? kept : options.map(function(){return '';}).slice(0, Math.max(3, options.length)),
       correct: kept.length ? newCorrect : correct,
       enabled: enabled,
-      difficulty: Math.min(5, Math.max(1, diffVal))
+      difficulty: Math.min(5, Math.max(1, diffVal)),
+      translation: translation,
+      translation_enabled: translation_enabled
     };
   });
 }
@@ -3568,7 +3622,9 @@ function prepareShuffledQuestions(qs, randomOrder){
       text: q.text,
       options: useOpts.map(function(o){ return o.text; }),
       correct: newCorrect >= 0 ? newCorrect : 0,
-      origIndex: origIdx
+      origIndex: origIdx,
+      translation: q.translation || '',
+      translation_enabled: !!(q.translation_enabled || q.show_translation)
     };
   });
   return randomOrder ? shuffleArray(mapped) : mapped;
@@ -3581,6 +3637,8 @@ function beginExam(ex, qs, mode){
   const prepared = prepareShuffledQuestions(qs, randomOn);
   activeExam={ exam:ex, questions:prepared, mode:mode, startedAt: Date.now() };
   answers={};
+  window._shownTrans = {};
+  window._translatedViewed = {};
   stopExamTimer();
   document.getElementById('takeExamName').textContent=ex.name;
   document.getElementById('finishBar').style.display = 'block';
@@ -3664,6 +3722,16 @@ function renderTakeExam(){
   // pad width for Q labels
   var pad = qs.length >= 100 ? 3 : 2;
   const body=document.getElementById('takeExamBody');
+  // exam-level translation permission
+  var examAllowTr = false;
+  try{
+    var ex = activeExam.exam || {};
+    var meta = {};
+    try{ meta = JSON.parse(localStorage.getItem('ipa_exam_meta_'+ex.id)||'{}'); }catch(e){}
+    try{ if(window._examFlagsMap && window._examFlagsMap[String(ex.id)]) meta = Object.assign({}, meta, window._examFlagsMap[String(ex.id)]); }catch(e){}
+    examAllowTr = !!(ex.allow_translation || meta.allow_translation);
+  }catch(e){}
+
   body.innerHTML=qs.map((q,qi)=>{
     const opts=q.options||[];
     const answered=answers[qi]!==undefined;
@@ -3675,17 +3743,25 @@ function renderTakeExam(){
       } else if(answers[qi]===oi){
         cls+=' selected';
       }
-      const dis = mode==='practice' && answered ? 'disabled' : '';
       const od=dirAttr(o);
-      return `<button type="button" class="${cls}" ${dis} dir="${od}" style="text-align:${od==='ltr'?'left':'right'}" onclick="answerQuestion(${qi},${oi})">${escapeHtml(o)}</button>`;
+      return `<button type="button" class="${cls}" dir="${od}" style="text-align:${od==='ltr'?'left':'right'}" onclick="answerQuestion(${qi},${oi})">${escapeHtml(o)}</button>`;
     }).join('');
-    const qd=dirAttr(q.text);
     var qLab = 'Q' + String(qi+1).padStart(pad,'0') + '.';
+    var canTr = examAllowTr && !!(q.translation_enabled) && !!(q.translation && String(q.translation).trim());
+    var showTr = canTr && window._shownTrans && window._shownTrans[qi];
+    if(showTr){ window._translatedViewed = window._translatedViewed || {}; window._translatedViewed[qi] = true; }
+    var trBtn = canTr
+      ? ('<button type="button" class="q-trans-btn '+(showTr?'on':'')+'" title="ترجمه" onclick="event.stopPropagation();toggleQuestionTranslation('+qi+')">文A</button>')
+      : '';
+    var trBlock = showTr
+      ? ('<div class="q-trans">'+escapeHtml(q.translation)+'</div>')
+      : '';
     return `<div class="q-card" id="qcard_${qi}">
-      <div class="q-line">
-        <div class="q-num">`+qLab+`</div>
-        <div class="q-text" dir="${qd}" style="text-align:${qd==='ltr'?'left':'right'}">${escapeHtml(q.text)}</div>
+      ${trBtn}
+      <div class="q-text-block">
+        <span class="q-num">${qLab}</span><span class="q-text">${escapeHtml(q.text||'')}</span>
       </div>
+      ${trBlock}
       ${optHtml}
     </div>`;
   }).join('');
@@ -3693,8 +3769,19 @@ function renderTakeExam(){
 
 function answerQuestion(qi, oi){
   if(!activeExam) return;
-  if(activeExam.mode==='practice' && answers[qi]!==undefined) return;
-  answers[qi]=oi;
+  // tap same option again → clear answer
+  if(answers[qi] === oi){
+    delete answers[qi];
+  } else {
+    answers[qi] = oi;
+  }
+  renderTakeExam();
+}
+function toggleQuestionTranslation(qi){
+  if(!activeExam) return;
+  if(!window._shownTrans) window._shownTrans = {};
+  window._shownTrans[qi] = !window._shownTrans[qi];
+  if(window._shownTrans[qi]) window._translatedCount = (window._translatedCount||0); // tracked at end
   renderTakeExam();
 }
 
@@ -3749,7 +3836,13 @@ async function finishExam(auto){
   const passed = score.percent >= passPct;
   const finishedAt=Date.now();
 
-  window._lastReview = { questions: qs, answers: answersCopy, score: score, passed: passed, passPct: passPct, correct:correct, wrong:wrong, unanswered:unanswered, correctIds:correctIds, wrongIds:wrongIds, unansweredIds:unansweredIds };
+  var transUsed = 0;
+  try{
+    if(window._translatedViewed){
+      transUsed = Object.keys(window._translatedViewed).filter(function(k){ return window._translatedViewed[k]; }).length;
+    }
+  }catch(e){}
+  window._lastReview = { questions: qs, answers: answersCopy, score: score, passed: passed, passPct: passPct, correct:correct, wrong:wrong, unanswered:unanswered, correctIds:correctIds, wrongIds:wrongIds, unansweredIds:unansweredIds, translated: transUsed };
 
   // نمایش فوری نتایج — بدون برگشت به صفحه آزمون
   document.getElementById('resultContent').innerHTML=`
@@ -3757,6 +3850,7 @@ async function finishExam(auto){
     <p style="font-weight:700;color:${passed?'var(--ok)':'var(--err)'}">${isPractice?(passed?'نتیجه آزمایشی: قبول':'نتیجه آزمایشی: مردود'):(passed?'قبول شدید':'قبول نشدید')}</p>
     <p>حداقل قبولی: ${passPct}٪</p>
     <p>درست: <b style="color:var(--ok)">${correct}</b> · غلط: <b style="color:var(--err)">${wrong}</b> · بی‌پاسخ: <b>${unanswered}</b></p>
+    ${transUsed ? ('<p style="color:#ca8a04;font-weight:700">ترجمه شده : '+transUsed+'</p>') : ''}
     <p class="score-formula">سوزاندن: هر ۳ غلط = ۱ درست (${score.burned} سوخته) → مؤثر: ${score.effective} از ${qs.length}</p>
     <p style="margin-top:10px;font-size:12px;color:var(--muted)" id="resultAttemptLine">مدت آزمون: ${formatDurationMs(finishedAt - startedAt)}</p>
     <button class="btn btn-secondary" style="margin-top:12px" onclick="showReview('blank')">مرور سوالات</button>
@@ -4532,7 +4626,7 @@ function selectPdfType(val){
   });
 }
 function selectPdfWeight(which, val){
-  var labels = { bold:'Bold (ضخیم)', normal:'Normal (معمولی)' };
+  var labels = { bold:'Bold (ضخیم)', normal:'Normal (معمولی)', light:'Light (نازک)' };
   var map = {
     bold: ['pdfWeightBold','pdfWeightBoldBtn','pdfWeightBoldMenu'],
     regular: ['pdfWeightRegular','pdfWeightRegularBtn','pdfWeightRegularMenu'],
@@ -4546,6 +4640,20 @@ function selectPdfWeight(which, val){
   if(hid) hid.value = val;
   if(btn) btn.textContent = (labels[val]||val) + ' ▾';
   if(menu) menu.classList.remove('open');
+}
+function getPdfWeight(which){
+  var map = {
+    bold: 'pdfWeightBold',
+    regular: 'pdfWeightRegular',
+    qtext: 'pdfWeightQText',
+    opt: 'pdfWeightOpt'
+  };
+  var id = map[which] || map.bold;
+  try{
+    var el = document.getElementById(id);
+    if(el && el.value) return el.value;
+  }catch(e){}
+  return which === 'bold' ? 'bold' : 'normal';
 }
 function fillPdfSettingsForm(pref, examLike){
   pref = pref || {};
@@ -5236,9 +5344,9 @@ function collectPdfSettings(){
     sizeMeta: num('pdfSizeMeta', 6.5),
     sizeSection: num('pdfSizeSection', 10),
     sizeAnswer: num('pdfSizeAnswer', 8),
-    weightBold: (typeof getPdfWeight === 'function' ? getPdfWeight('bold') : null) || 'bold',
-    weightQText: (typeof getPdfWeight === 'function' ? getPdfWeight('qtext') : null) || 'normal',
-    weightOpt: (typeof getPdfWeight === 'function' ? getPdfWeight('opt') : null) || 'normal',
+    weightBold: (typeof getPdfWeight === 'function' ? getPdfWeight('bold') : null) || val('pdfWeightBold','bold') || 'bold',
+    weightQText: (typeof getPdfWeight === 'function' ? getPdfWeight('qtext') : null) || val('pdfWeightQText','normal') || 'normal',
+    weightOpt: (typeof getPdfWeight === 'function' ? getPdfWeight('opt') : null) || val('pdfWeightOpt','normal') || 'normal',
     includeAnswers: chk('pdfIncludeAnswers'),
     watermarkText: String(val('pdfWatermarkText', 'ANSWER KEY · CONFIDENTIAL · I.P.A')).trim(),
     autoDuration: (typeof isPdfAutoDuration === 'function') ? !!isPdfAutoDuration() : false
