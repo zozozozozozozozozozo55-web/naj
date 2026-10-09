@@ -979,21 +979,36 @@ body.dark .dl-progress-wrap{background:#2a2e3a}
       <div class="pdf-pick-wrap">
         <button type="button" class="pdf-pick" id="pdfWeightBoldBtn" onclick="togglePdfPick('pdfWeightBoldMenu')">Bold (ضخیم) ▾</button>
         <div class="pdf-pick-menu" id="pdfWeightBoldMenu">
-          <button type="button" data-val="bold" onclick="selectPdfWeight('bold','bold')">Bold (ضخیم)</button>
           <button type="button" data-val="normal" onclick="selectPdfWeight('bold','normal')">Normal (معمولی)</button>
+          <button type="button" data-val="bold" onclick="selectPdfWeight('bold','bold')">Bold (ضخیم)</button>
         </div>
         <input type="hidden" id="pdfWeightBold" value="bold">
       </div>
     </div>
-    <div class="input-group"><label>متن سوال و گزینه‌ها</label>
+    <div class="input-group"><label>ضخامت متن سوال</label>
       <div class="pdf-pick-wrap">
-        <button type="button" class="pdf-pick" id="pdfWeightRegularBtn" onclick="togglePdfPick('pdfWeightRegularMenu')">Normal (معمولی) ▾</button>
-        <div class="pdf-pick-menu" id="pdfWeightRegularMenu">
-          <button type="button" data-val="normal" onclick="selectPdfWeight('regular','normal')">Normal (معمولی)</button>
-          <button type="button" data-val="bold" onclick="selectPdfWeight('regular','bold')">Bold (ضخیم)</button>
+        <button type="button" class="pdf-pick" id="pdfWeightQTextBtn" onclick="togglePdfPick('pdfWeightQTextMenu')">Normal (معمولی) ▾</button>
+        <div class="pdf-pick-menu" id="pdfWeightQTextMenu">
+          <button type="button" data-val="normal" onclick="selectPdfWeight('qtext','normal')">Normal (معمولی)</button>
+          <button type="button" data-val="bold" onclick="selectPdfWeight('qtext','bold')">Bold (ضخیم)</button>
         </div>
-        <input type="hidden" id="pdfWeightRegular" value="normal">
+        <input type="hidden" id="pdfWeightQText" value="normal">
       </div>
+    </div>
+    <div class="input-group"><label>ضخامت گزینه‌ها / جواب</label>
+      <div class="pdf-pick-wrap">
+        <button type="button" class="pdf-pick" id="pdfWeightOptBtn" onclick="togglePdfPick('pdfWeightOptMenu')">Normal (معمولی) ▾</button>
+        <div class="pdf-pick-menu" id="pdfWeightOptMenu">
+          <button type="button" data-val="normal" onclick="selectPdfWeight('opt','normal')">Normal (معمولی)</button>
+          <button type="button" data-val="bold" onclick="selectPdfWeight('opt','bold')">Bold (ضخیم)</button>
+        </div>
+        <input type="hidden" id="pdfWeightOpt" value="normal">
+      </div>
+    </div>
+    <div class="input-group" id="pdfWatermarkWrap" style="display:none">
+      <label>واترمارک پاسخ‌نامه</label>
+      <input type="text" id="pdfWatermarkText" value="ANSWER KEY · CONFIDENTIAL · I.P.A" dir="ltr" style="direction:ltr;text-align:left">
+      <div class="hint">متن واترمارک روی صفحات پاسخ‌نامه (با فاصله · جدا کنید)</div>
     </div>
 
     <div class="hint" style="margin-top:12px" id="pdfSettingsHint">پس از تنظیم، دکمه «دانلود» پایین صفحه را بزنید.</div>
@@ -1471,12 +1486,9 @@ function handleAndroidBack(){
       }
     }
     // fallback to role home
-    if(currentUser){ showPage('userMainPage', { skipStack: true });
-    try{ fetchExamsCached(false); }catch(e){} return true; }
-    if(isManager){ showPage('managerPage', { skipStack: true });
-    try{ fetchExamsCached(false); }catch(e){} return true; }
-    if(currentAdmin){ showPage('adminPage', { skipStack: true });
-    try{ fetchExamsCached(false); }catch(e){} return true; }
+    if(currentUser){ showPage('userMainPage', { skipStack: true }); return true; }
+    if(isManager){ showPage('managerPage', { skipStack: true }); return true; }
+    if(currentAdmin){ showPage('adminPage', { skipStack: true }); return true; }
     showPage('homePage', { skipStack: true });
     return true;
   }catch(e){
@@ -1910,7 +1922,7 @@ async function openMyStats(){
     });
     window._myStatsByExam = byExam;
     body.innerHTML = list.map(function(item){
-      return '<div class="stat-exam-card" onclick="openMyStatsDetail(\''+String(item.id).replace(/'/g,"")+'\')">'
+      return '<div class="stat-exam-card" onclick="openMyStatsDetail(\''+String(item.id)+'\')">'
         + '<div style="flex:1;min-width:0;text-align:right">'
         + '<div class="st-name">'+escapeHtml(item.name)+'</div>'
         + '<div class="st-meta">تعداد شرکت: <b>'+item.rows.length+'</b> بار</div>'
@@ -2826,7 +2838,7 @@ async function fetchExamsCached(force){
   }
   _examsCachePromise = (async function(){
     // lighter select for list views (still need questions for counts - keep *)
-    var rows = await sbGet('exams','select=id,name,type,enabled,time_limit,pass_percent,user_download,questions&order=id.asc');
+    var rows = await sbGet('exams','select=*&order=id.asc');
     _examsCache = rows || [];
     _examsCacheTs = Date.now();
     return _examsCache;
@@ -3966,15 +3978,19 @@ function selectPdfType(val){
 }
 function selectPdfWeight(which, val){
   var labels = { bold:'Bold (ضخیم)', normal:'Normal (معمولی)' };
-  if(which==='bold'){
-    document.getElementById('pdfWeightBold').value = val;
-    document.getElementById('pdfWeightBoldBtn').textContent = (labels[val]||val) + ' ▾';
-    document.getElementById('pdfWeightBoldMenu').classList.remove('open');
-  } else {
-    document.getElementById('pdfWeightRegular').value = val;
-    document.getElementById('pdfWeightRegularBtn').textContent = (labels[val]||val) + ' ▾';
-    document.getElementById('pdfWeightRegularMenu').classList.remove('open');
-  }
+  var map = {
+    bold: ['pdfWeightBold','pdfWeightBoldBtn','pdfWeightBoldMenu'],
+    regular: ['pdfWeightRegular','pdfWeightRegularBtn','pdfWeightRegularMenu'],
+    qtext: ['pdfWeightQText','pdfWeightQTextBtn','pdfWeightQTextMenu'],
+    opt: ['pdfWeightOpt','pdfWeightOptBtn','pdfWeightOptMenu']
+  };
+  var ids = map[which] || map.regular;
+  var hid = document.getElementById(ids[0]);
+  var btn = document.getElementById(ids[1]);
+  var menu = document.getElementById(ids[2]);
+  if(hid) hid.value = val;
+  if(btn) btn.textContent = (labels[val]||val) + ' ▾';
+  if(menu) menu.classList.remove('open');
 }
 function fillPdfSettingsForm(pref, examLike){
   pref = pref || {};
@@ -4003,7 +4019,10 @@ function fillPdfSettingsForm(pref, examLike){
   var ia = document.getElementById('pdfIncludeAnswers');
   if(ia) ia.checked = !!pref.includeAnswers;
   selectPdfWeight('bold', pref.weightBold || 'bold');
-  selectPdfWeight('regular', pref.weightRegular || 'normal');
+  selectPdfWeight('qtext', pref.weightQText || pref.weightRegular || 'normal');
+  selectPdfWeight('opt', pref.weightOpt || pref.weightRegular || 'normal');
+  var wm = document.getElementById('pdfWatermarkText');
+  if(wm) wm.value = pref.watermarkText || 'ANSWER KEY · CONFIDENTIAL · I.P.A';
 }
 var _pdfDefaultsMode = false;
 
@@ -4014,8 +4033,10 @@ function setPdfBankMode(on){
   _pdfMode = on ? 'bank' : 'exam';
   var secWrap = document.getElementById('pdfSizeSectionWrap');
   var ansRow = document.getElementById('pdfAnswerKeyRow');
+  var wmWrap = document.getElementById('pdfWatermarkWrap');
   if(secWrap) secWrap.style.display = on ? '' : 'none';
   if(ansRow) ansRow.style.display = on ? '' : 'none';
+  if(wmWrap) wmWrap.style.display = on ? '' : 'none';
   // hide exam-only fields partially for bank
   var typeWrap = document.getElementById('pdfExamTypeBtn');
   var dur = document.getElementById('pdfExamDuration');
@@ -4083,7 +4104,7 @@ function buildBankPdfBlob(JsPDF, bankData, settings, onProgress){
     try{
       var doc = new JsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
       var pageW = 210, pageH = 297;
-      var marginL = 14, marginR = 14, marginT = 12, marginB = 14;
+      var marginL = 14, marginR = 14, marginT = 12, marginB = 18;
       var contentW = pageW - marginL - marginR;
       var y = marginT;
       var logoSize = settings.logoSize != null ? settings.logoSize : 17;
@@ -4094,31 +4115,51 @@ function buildBankPdfBlob(JsPDF, bankData, settings, onProgress){
       var sizeOpt = settings.sizeOpt || 7;
       var sizeMeta = settings.sizeMeta || 6;
       var wBold = settings.weightBold === 'normal' ? 'normal' : 'bold';
-      var wReg = settings.weightRegular === 'bold' ? 'bold' : 'normal';
+      var wQ = settings.weightQText === 'bold' ? 'bold' : 'normal';
+      var wOpt = settings.weightOpt === 'bold' ? 'bold' : 'normal';
+      var appName = 'I.P.A Exam Academy';
       var qGlobal = 0;
-      var answerKey = []; // {num, letter}
+      var answerKey = [];
+      var logoDataLocal = 'data:image/png;base64,' + (typeof IPA_LOGO_B64 !== 'undefined' ? IPA_LOGO_B64 : '');
 
+      function footer(){
+        var pn = doc.internal.getNumberOfPages();
+        for(var p=1;p<=pn;p++){
+          doc.setPage(p);
+          doc.setDrawColor(180);
+          doc.setLineWidth(0.25);
+          doc.line(marginL, pageH - 12, pageW - marginR, pageH - 12);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7);
+          doc.setTextColor(160);
+          doc.text(appName, pageW/2, pageH - 8, { align:'center' });
+          doc.text(String(p), pageW - marginR, pageH - 8, { align:'right' });
+          doc.setTextColor(0);
+        }
+      }
       function ensureSpace(need){
         if(y + need > pageH - marginB){
           doc.addPage();
           y = marginT;
+          drawPageHeader(false);
         }
       }
-      var logoDataLocal = 'data:image/png;base64,' + (typeof IPA_LOGO_B64 !== 'undefined' ? IPA_LOGO_B64 : '');
-      function drawHeader(){
+      function drawPageHeader(first){
+        var topY = marginT;
         try{
           if(logoDataLocal && logoDataLocal.length > 50){
-            doc.addImage(logoDataLocal, 'PNG', marginL, y, logoSize, logoSize);
+            doc.addImage(logoDataLocal, 'PNG', marginL, topY, logoSize * (first?1:0.7), logoSize * (first?1:0.7));
           }
         }catch(e){}
-        var tx = marginL + logoSize + 3;
+        var ls = logoSize * (first?1:0.7);
+        var tx = marginL + ls + 3;
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(sizeTitle);
-        doc.text(settings.headerTitle || 'QUESTION BANK', tx, y + 6);
+        doc.setFontSize(first ? sizeTitle : Math.max(7, sizeTitle-1));
+        doc.text(settings.headerTitle || 'QUESTION BANK', tx, topY + 5);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(sizeMeta);
-        doc.text((settings.examName || bankData.name || '') + '  |  ' + (settings.org||'I.P.A'), tx, y + 11);
-        y = Math.max(y + logoSize, y + 16) + 4;
+        doc.text((settings.examName || bankData.name || '') + '  |  ' + (settings.org||'I.P.A'), tx, topY + 10);
+        y = Math.max(topY + ls, topY + 14) + 3;
         doc.setDrawColor(180);
         doc.setLineWidth(0.3);
         doc.line(marginL, y, pageW - marginR, y);
@@ -4135,7 +4176,7 @@ function buildBankPdfBlob(JsPDF, bankData, settings, onProgress){
         doc.setFont('helvetica', wBold);
         doc.setFontSize(sizeQNum);
         var prefixW = doc.getTextWidth(prefix);
-        doc.setFont('helvetica', wReg);
+        doc.setFont('helvetica', wQ);
         doc.setFontSize(sizeQText);
         var lines = wrapText(q.text||'', contentW - prefixW - 1, sizeQText);
         var blockH = Math.max(lines.length, 1) * (sizeQText * 0.42) + opts.length * (sizeOpt * 0.45) + 4;
@@ -4143,27 +4184,28 @@ function buildBankPdfBlob(JsPDF, bankData, settings, onProgress){
         doc.setFont('helvetica', wBold);
         doc.setFontSize(sizeQNum);
         doc.text(prefix, marginL, y);
-        doc.setFont('helvetica', wReg);
+        doc.setFont('helvetica', wQ);
         doc.setFontSize(sizeQText);
         doc.text(lines, marginL + prefixW, y);
         y += Math.max(lines.length, 1) * (sizeQText * 0.42) + 1.5;
         opts.forEach(function(o, oi){
           ensureSpace(sizeOpt * 0.5);
+          doc.setFont('helvetica', wOpt);
           doc.setFontSize(sizeOpt);
           doc.text(letters[oi] + ')  ' + o, marginL + 4, y);
           y += sizeOpt * 0.45;
         });
         y += 2.5;
-        var corr = Math.min(opts.length-1, Math.max(0, q.correct|0));
+        var corr = Math.min(Math.max(opts.length-1,0), Math.max(0, q.correct|0));
         answerKey.push({ num: num, letter: letters[corr] || '?' });
       }
 
-      drawHeader();
+      drawPageHeader(true);
       var sections = bankData.sections || [];
-      var totalQ = sections.reduce(function(a,s){ return a + (s.questions||[]).length; }, 0);
+      var totalQ = sections.reduce(function(a,s){ return a + (s.questions||[]).length; }, 0) || 1;
       var done = 0;
       sections.forEach(function(sec){
-        ensureSpace(12);
+        ensureSpace(14);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(sizeSection);
         doc.setTextColor(40,40,90);
@@ -4179,34 +4221,49 @@ function buildBankPdfBlob(JsPDF, bankData, settings, onProgress){
           qGlobal++;
           drawQuestion(q, qGlobal);
           done++;
-          if(onProgress) onProgress(Math.min(90, Math.round(done/totalQ*80)));
+          if(onProgress) onProgress(Math.min(85, Math.round(done/totalQ*80)));
         });
         y += 3;
       });
 
-      // Answer key
       if(settings.includeAnswers && answerKey.length){
         doc.addPage();
         y = marginT;
+        // Answer key header (same template)
+        try{
+          if(logoDataLocal && logoDataLocal.length > 50){
+            doc.addImage(logoDataLocal, 'PNG', marginL, y, logoSize*0.75, logoSize*0.75);
+          }
+        }catch(e){}
+        var ls = logoSize*0.75;
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(14);
+        doc.setFontSize(sizeTitle);
+        doc.text(settings.headerTitle || 'QUESTION BANK', marginL + ls + 3, y + 5);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(sizeMeta);
+        doc.text((settings.examName || bankData.name || '') + '  |  ANSWER KEY', marginL + ls + 3, y + 10);
+        y = Math.max(y + ls, y + 14) + 3;
+        doc.setDrawColor(180);
+        doc.line(marginL, y, pageW - marginR, y);
+        y += 8;
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
         doc.text('ANSWER KEY', pageW/2, y, { align:'center' });
         y += 8;
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        doc.text(settings.examName || bankData.name || '', pageW/2, y, { align:'center' });
-        y += 10;
 
-        // watermarks - many light ones
+        // watermarks from user text
+        var wmRaw = (settings.watermarkText || 'ANSWER KEY · CONFIDENTIAL · I.P.A').split(/[·|]/);
+        var marks = wmRaw.map(function(s){ return s.trim(); }).filter(Boolean);
+        if(!marks.length) marks = ['ANSWER KEY','CONFIDENTIAL','I.P.A'];
         function stampWatermarks(){
-          doc.setTextColor(210, 210, 220);
+          doc.setTextColor(205, 205, 215);
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(18);
-          var marks = ['ANSWER KEY','CONFIDENTIAL','I.P.A','DO NOT COPY','ANSWER KEY','I.P.A'];
+          doc.setFontSize(16);
           var mi = 0;
-          for(var wy = 25; wy < pageH - 15; wy += 28){
-            for(var wx = 20; wx < pageW - 10; wx += 55){
-              doc.text(marks[mi % marks.length], wx, wy, { angle: -25 });
+          for(var wy = 30; wy < pageH - 20; wy += 26){
+            for(var wx = 18; wx < pageW - 15; wx += 52){
+              doc.text(marks[mi % marks.length], wx, wy, { angle: -28 });
               mi++;
             }
           }
@@ -4214,30 +4271,37 @@ function buildBankPdfBlob(JsPDF, bankData, settings, onProgress){
         }
         stampWatermarks();
 
-        // answers in columns
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
+        // uniform answer font
+        var ansSize = 9;
+        var ansWeight = 'normal';
+        doc.setFont('helvetica', ansWeight);
+        doc.setFontSize(ansSize);
         var colW = contentW / 4;
         var col = 0;
-        var startY = y;
-        answerKey.forEach(function(a, i){
-          if(y > pageH - marginB - 5){
+        var lineH = 5.8;
+        answerKey.forEach(function(a){
+          if(y > pageH - marginB - 6){
             doc.addPage();
+            // mini header
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text('ANSWER KEY — ' + (settings.examName || bankData.name || ''), pageW/2, marginT + 4, { align:'center' });
+            y = marginT + 12;
             stampWatermarks();
-            y = marginT + 5;
+            doc.setFont('helvetica', ansWeight);
+            doc.setFontSize(ansSize);
             col = 0;
-            startY = y;
           }
           var x = marginL + col * colW;
-          var line = String(a.num).padStart(3,'0') + ' — ' + a.letter;
-          doc.text(line, x, y);
+          doc.setFont('helvetica', ansWeight);
+          doc.setFontSize(ansSize);
+          doc.setTextColor(0,0,0);
+          doc.text(String(a.num).padStart(3,'0') + ' — ' + a.letter, x, y);
           col++;
-          if(col >= 4){
-            col = 0;
-            y += 5.5;
-          }
+          if(col >= 4){ col = 0; y += lineH; }
         });
       }
+      footer();
       if(onProgress) onProgress(100);
       resolve(doc.output('blob'));
     }catch(err){
@@ -4435,8 +4499,11 @@ function collectPdfSettings(){
     sizeMeta: parseFloat(document.getElementById('pdfSizeMeta').value)||6,
     sizeSection: parseFloat((document.getElementById('pdfSizeSection')||{}).value)||9,
     includeAnswers: !!(document.getElementById('pdfIncludeAnswers')||{}).checked,
-    weightBold: document.getElementById('pdfWeightBold').value||'bold',
-    weightRegular: document.getElementById('pdfWeightRegular').value||'normal'
+    weightBold: (document.getElementById('pdfWeightBold')||{}).value||'bold',
+    weightQText: (document.getElementById('pdfWeightQText')||{}).value||'normal',
+    weightOpt: (document.getElementById('pdfWeightOpt')||{}).value||'normal',
+    weightRegular: (document.getElementById('pdfWeightQText')||{}).value||'normal',
+    watermarkText: ((document.getElementById('pdfWatermarkText')||{}).value||'ANSWER KEY · CONFIDENTIAL · I.P.A').trim()
   };
   try{
     localStorage.setItem('ipa_pdf_font_prefs', JSON.stringify(s));
@@ -4881,8 +4948,8 @@ function buildExamPdfBlob(JsPDF, examData, settings, onProgress){
           setF(settings.sizeQNum, settings.weightBold);
           doc.text(qLabel, marginL, y + 3.2);
           var labelW = textW(qLabel + '  ', settings.sizeQNum, settings.weightBold);
-          var lines = wrapText(q.text||'', contentW - labelW - 1, settings.sizeQText, settings.weightRegular);
-          setF(settings.sizeQText, settings.weightRegular);
+          var lines = wrapText(q.text||'', contentW - labelW - 1, settings.sizeQText, settings.weightQText||settings.weightRegular);
+          setF(settings.sizeQText, settings.weightQText||settings.weightRegular);
           for(var li=0; li<lines.length; li++){
             doc.text(lines[li], marginL + labelW, y + 3.2 + li * (settings.sizeQText * 0.42));
           }
@@ -4900,8 +4967,8 @@ function buildExamPdfBlob(JsPDF, examData, settings, onProgress){
             doc.setTextColor.apply(doc, DARK);
             doc.text(letters[oi] + '.', cbX + cbS + 1.5, y);
             var optX = cbX + cbS + 6;
-            var optLines = wrapText(opts[oi]||'', pageW - marginR - optX - 2, settings.sizeOpt, settings.weightRegular);
-            setF(settings.sizeOpt, settings.weightRegular);
+            var optLines = wrapText(opts[oi]||'', pageW - marginR - optX - 2, settings.sizeOpt, settings.weightOpt||settings.weightRegular);
+            setF(settings.sizeOpt, settings.weightOpt||settings.weightRegular);
             for(var ol=0; ol<optLines.length; ol++){
               doc.text(optLines[ol], optX, y + ol * (settings.sizeOpt * 0.42));
             }
