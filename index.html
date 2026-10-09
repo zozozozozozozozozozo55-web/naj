@@ -4036,10 +4036,13 @@ async function userShareExam(examId){
 }
 
 
-const PDF_DL_KEY = 'ipa_exam_downloads_v1';
 let _pdfExamData = null; // {id, name, type, time_limit, questions, ...}
+let _pdfBankData = null;
+let _pdfMode = 'exam';
+let _pdfDefaultsMode = false;
 let _pdfGenerating = false;
 let _pdfCancelId = null;
+
 function yieldToUI(){
   return new Promise(function(resolve){
     if(typeof requestAnimationFrame==='function'){
@@ -4051,81 +4054,117 @@ function yieldToUI(){
 }
 function cancelPdfGeneration(id){
   _pdfCancelId = id;
-  var items = loadPdfDownloads();
+  var items = loadPdfDownloadsMeta();
   items = items.filter(function(x){ return x.id !== id; });
-  savePdfDownloads(items);
+  savePdfDownloadsMeta(items);
+  try{ idbDeletePdf(id); }catch(e){}
   renderDownloadsList();
   toast('ساخت PDF لغو شد','ok');
 }
 
+/* ========== PDF Downloads: meta in localStorage, files in IndexedDB ========== */
+var PDF_DL_KEY = 'ipa_pdf_downloads_v2';
+var PDF_IDB_NAME = 'ipa_pdf_idb';
+var PDF_IDB_STORE = 'pdfs';
 
-function pdfDownloadsStorageKey(){
-  var who = 'guest';
+function pdfAccountKey(){
   try{
-    if(currentUser && currentUser.username) who = 'user:' + String(currentUser.username).toLowerCase();
-    else if(isManager) who = 'manager';
-    else if(currentAdmin && currentAdmin.name) who = 'admin:' + String(currentAdmin.name).toLowerCase();
+    if(currentUser && currentUser.username) return 'user:' + String(currentUser.username).toLowerCase();
+    if(isManager) return 'manager';
+    if(currentAdmin && currentAdmin.name) return 'admin:' + String(currentAdmin.name).toLowerCase();
   }catch(e){}
-  return PDF_DL_KEY + '::' + who;
+  return 'guest';
 }
-if(!window._pdfBlobMem) window._pdfBlobMem = {};
-function loadPdfDownloads(){
-  try{
-    var list = JSON.parse(localStorage.getItem(pdfDownloadsStorageKey())||'[]');
-    // never keep base64 in persisted list
-    return (list||[]).map(function(it){
-      var copy = Object.assign({}, it);
-      if(copy.data && copy.data.length > 500){
-        // migrate old huge entries out of storage on read
-        window._pdfBlobMem[copy.id] = copy.data;
-        delete copy.data;
-      }
-      // restore session blob if any
-      if(!copy.data && window._pdfBlobMem[copy.id]) copy._hasMem = true;
-      return copy;
-    });
-  }catch(e){ return []; }
+function pdfMetaKey(){ return PDF_DL_KEY + '::' + pdfAccountKey(); }
+
+function loadPdfDownloadsMeta(){
+  try{ return JSON.parse(localStorage.getItem(pdfMetaKey())||'[]') || []; }catch(e){ return []; }
 }
-function savePdfDownloads(list){
+function savePdfDownloadsMeta(list){
   try{
-    var slim = (list||[]).map(function(it){
-      var o = {
+    var slim = (list||[]).slice(0, 20).map(function(it){
+      return {
         id: it.id,
-        examId: it.examId,
-        name: it.name,
-        meta: it.meta,
-        status: it.status,
-        progress: it.progress,
-        ts: it.ts,
-        filename: it.filename,
-        size: it.size
+        examId: it.examId || null,
+        name: it.name || 'PDF',
+        meta: it.meta || '',
+        status: it.status || 'done',
+        progress: it.progress != null ? it.progress : (it.status==='done'?100:0),
+        ts: it.ts || Date.now(),
+        filename: it.filename || 'exam.pdf',
+        size: it.size || 0
       };
-      // if data is small keep it; large goes to memory only
-      if(it.data && String(it.data).length < 200000){
-        o.data = it.data;
-      } else if(it.data){
-        window._pdfBlobMem[it.id] = it.data;
-      }
-      return o;
     });
-    // max 15 items
-    if(slim.length > 15) slim = slim.slice(0, 15);
-    localStorage.setItem(pdfDownloadsStorageKey(), JSON.stringify(slim));
-  }catch(e){
-    console.warn('downloads storage', e);
-    try{
-      var tiny = (list||[]).slice(0,3).map(function(it){
-        return { id:it.id, name:it.name, meta:it.meta, status:it.status||'done', progress:100, ts:it.ts, filename:it.filename };
-      });
-      localStorage.setItem(pdfDownloadsStorageKey(), JSON.stringify(tiny));
-    }catch(e2){}
-  }
+    localStorage.setItem(pdfMetaKey(), JSON.stringify(slim));
+  }catch(e){ console.warn('meta save', e); }
 }
-function getPdfDownloadData(id){
-  if(window._pdfBlobMem && window._pdfBlobMem[id]) return window._pdfBlobMem[id];
-  var items = loadPdfDownloads();
-  var it = items.find(function(x){ return x.id===id; });
-  return it && it.data ? it.data : null;
+// backward-compatible aliases
+function loadPdfDownloads(){ return loadPdfDownloadsMeta(); }
+function savePdfDownloads(list){ return savePdfDownloadsMeta(list); }
+
+function idbOpen(){
+  return new Promise(function(resolve, reject){
+    try{
+      var req = indexedDB.open(PDF_IDB_NAME, 1);
+      req.onupgradeneeded = function(ev){
+        var db = ev.target.result;
+        if(!db.objectStoreNames.contains(PDF_IDB_STORE)){
+          db.createObjectStore(PDF_IDB_STORE, { keyPath: 'id' });
+        }
+      };
+      req.onsuccess = function(){ resolve(req.result); };
+      req.onerror = function(){ reject(req.error || new Error('idb open')); };
+    }catch(e){ reject(e); }
+  });
+}
+function idbPutPdf(id, base64, filename, account){
+  return idbOpen().then(function(db){
+    return new Promise(function(resolve, reject){
+      try{
+        var tx = db.transaction(PDF_IDB_STORE, 'readwrite');
+        tx.objectStore(PDF_IDB_STORE).put({
+          id: id,
+          account: account || pdfAccountKey(),
+          filename: filename || 'exam.pdf',
+          data: base64,
+          ts: Date.now()
+        });
+        tx.oncomplete = function(){ resolve(true); };
+        tx.onerror = function(){ reject(tx.error); };
+      }catch(e){ reject(e); }
+    });
+  });
+}
+function idbGetPdf(id){
+  return idbOpen().then(function(db){
+    return new Promise(function(resolve, reject){
+      try{
+        var tx = db.transaction(PDF_IDB_STORE, 'readonly');
+        var req = tx.objectStore(PDF_IDB_STORE).get(id);
+        req.onsuccess = function(){ resolve(req.result || null); };
+        req.onerror = function(){ reject(req.error); };
+      }catch(e){ reject(e); }
+    });
+  });
+}
+function idbDeletePdf(id){
+  return idbOpen().then(function(db){
+    return new Promise(function(resolve){
+      try{
+        var tx = db.transaction(PDF_IDB_STORE, 'readwrite');
+        tx.objectStore(PDF_IDB_STORE).delete(id);
+        tx.oncomplete = function(){ resolve(true); };
+        tx.onerror = function(){ resolve(false); };
+      }catch(e){ resolve(false); }
+    });
+  });
+}
+async function getPdfDownloadData(id){
+  try{
+    var row = await idbGetPdf(id);
+    if(row && row.data) return row.data;
+  }catch(e){ console.warn('idb get', e); }
+  return null;
 }
 
 function mapExamTypeForPdf(t){
@@ -4421,11 +4460,6 @@ function fillPdfSettingsForm(pref, examLike){
   var adr = document.getElementById('pdfAutoDurationRow');
   if(adr) adr.style.display = (_pdfMode === 'bank') ? 'none' : '';
 }
-var _pdfDefaultsMode = false;
-
-var _pdfMode = 'exam'; // exam | bank
-var _pdfBankData = null;
-
 function setPdfBankMode(on){
   _pdfMode = on ? 'bank' : 'exam';
   var secWrap = document.getElementById('pdfSizeSectionWrap');
@@ -4449,16 +4483,24 @@ function setPdfBankMode(on){
 
 function openBankPdfSettings(bankId){
   try{
+    _pdfGenerating = false;
+    _pdfDefaultsMode = false;
     var banks = getBanks();
     var bank = banks.find(function(b){ return String(b.id)===String(bankId); });
     if(!bank){ toast('بانک پیدا نشد','err'); return; }
     var modules = (bank.modules||[]).filter(function(m){ return m && m.enabled !== false; });
     var allQs = [];
     modules.forEach(function(m){
-      var qs = (m.questions||[]).filter(function(q){ return q && q.enabled !== false && q.text; });
-      if(qs.length) allQs.push({ section: m.name||m.id, questions: qs });
+      var qs = (m.questions||[]).filter(function(q){ return q && q.enabled !== false && (q.text||'').trim(); });
+      if(qs.length) allQs.push({ section: m.name||m.id||'Section', questions: qs });
     });
+    // fallback: questions directly on bank
+    if(!allQs.length && Array.isArray(bank.questions) && bank.questions.length){
+      var qs2 = bank.questions.filter(function(q){ return q && (q.text||'').trim(); });
+      if(qs2.length) allQs.push({ section: bank.name||'Questions', questions: qs2 });
+    }
     if(!allQs.length){ toast('سوالی در این بانک نیست','err'); return; }
+    _pdfMode = 'bank';
     _pdfBankData = { id: bank.id, name: bank.name||'Question Bank', sections: allQs };
     _pdfExamData = {
       id: bank.id,
@@ -4874,38 +4916,46 @@ function renderDownloadsList(){
 }
 
 async function shareDownloadedPdf(id){
-  var items = loadPdfDownloads();
-  var it = items.find(function(x){ return x.id===id; });
-  var data = getPdfDownloadData(id);
-  if(!it || !data){ toast('فایل در حافظه این نشست نیست — دوباره دانلود کنید','err'); return; }
-  it.data = data;
-  var filename = it.filename || 'exam.pdf';
-  var pure = (data.indexOf(',') >= 0) ? data.split(',')[1] : data;
-  // Android bridge share
   try{
-    var b = getAndroidBridge && getAndroidBridge();
-    if(b && typeof b.sharePdf === 'function'){
-      b.sharePdf(pure, filename);
-      return;
+    var items = loadPdfDownloadsMeta();
+    var it = items.find(function(x){ return x.id===id; });
+    if(!it){ toast('مورد پیدا نشد','err'); return; }
+    var data = await getPdfDownloadData(id);
+    if(!data){ toast('فایل پیدا نشد — دوباره از منبع دانلود کنید','err'); return; }
+    var filename = it.filename || 'exam.pdf';
+    var pure = (String(data).indexOf(',') >= 0) ? String(data).split(',')[1] : String(data);
+    try{
+      var b = getAndroidBridge && getAndroidBridge();
+      if(b && typeof b.sharePdf === 'function'){
+        b.sharePdf(pure, filename);
+        return;
+      }
+    }catch(e){}
+    try{
+      var blob = base64ToBlob(String(data).indexOf(',')>=0 ? data : ('data:application/pdf;base64,'+data));
+      var file = new File([blob], filename, { type: 'application/pdf' });
+      if(navigator.canShare && navigator.canShare({ files: [file] })){
+        await navigator.share({ files: [file], title: it.name || filename });
+        return;
+      }
+      if(navigator.share){
+        await navigator.share({ title: it.name || filename, text: 'PDF: ' + (it.name||filename) });
+        return;
+      }
+    }catch(e){
+      if(e && e.name === 'AbortError') return;
+      console.warn(e);
     }
-  }catch(e){}
-  // Web Share API with file
-  try{
-    var blob = base64ToBlob(it.data.indexOf(',')>=0 ? it.data : ('data:application/pdf;base64,'+it.data));
-    var file = new File([blob], filename, { type: 'application/pdf' });
-    if(navigator.canShare && navigator.canShare({ files: [file] })){
-      await navigator.share({ files: [file], title: it.name || filename });
-      return;
-    }
-    if(navigator.share){
-      await navigator.share({ title: it.name || filename, text: 'PDF آزمون: ' + (it.name||filename) });
-      return;
-    }
+    // fallback: trigger download
+    try{
+      var blob2 = base64ToBlob(String(data).indexOf(',')>=0 ? data : ('data:application/pdf;base64,'+data));
+      await triggerBlobDownload(blob2, filename);
+    }catch(e){}
+    toast('اشتراک‌گذاری مستقیم پشتیبانی نشد — فایل دانلود شد','ok');
   }catch(e){
-    if(e && e.name === 'AbortError') return;
-    console.warn(e);
+    console.error(e);
+    toast('خطا در اشتراک‌گذاری','err');
   }
-  toast('اشتراک‌گذاری در این دستگاه پشتیبانی نمی‌شود','err');
 }
 
 function updateDlProgress(id, pct, light){
@@ -4989,30 +5039,40 @@ function collectPdfSettings(){
 async function startExamPdfDownload(){
   if(_pdfGenerating){ toast('در حال ساخت PDF...','err'); return; }
   if(_pdfDefaultsMode){
-    savePdfGlobalDefaults();
+    // defaults mode should use Save button, not Download
+    try{
+      if(_pdfMode === 'bank') saveBankPdfDefaults();
+      else savePdfGlobalDefaults();
+    }catch(e){ console.warn(e); }
     return;
   }
-  if(_pdfMode === 'bank'){
-    if(!_pdfBankData || !_pdfBankData.sections || !_pdfBankData.sections.length){
+  // snapshot mode BEFORE any UI changes
+  var buildMode = _pdfMode;
+  var buildBank = _pdfBankData;
+  var buildExam = _pdfExamData;
+  if(buildMode === 'bank'){
+    if(!buildBank || !buildBank.sections || !buildBank.sections.length){
       toast('سوالی برای خروجی وجود ندارد','err'); return;
     }
-  } else if(!_pdfExamData || !_pdfExamData.questions || !_pdfExamData.questions.length){
-    toast('سوالی برای خروجی وجود ندارد','err'); return;
+  } else {
+    if(!buildExam || !buildExam.questions || !buildExam.questions.length){
+      toast('سوالی برای خروجی وجود ندارد','err'); return;
+    }
   }
   var settings = collectPdfSettings();
   var dlId = 'dl_' + Date.now() + '_' + Math.floor(Math.random()*9999);
   var metaLine;
-  if(_pdfMode === 'bank' && _pdfBankData){
-    var nSec = (_pdfBankData.sections||[]).length;
-    var nQ = (_pdfBankData.sections||[]).reduce(function(a,s){ return a+(s.questions||[]).length; },0);
+  if(buildMode === 'bank' && buildBank){
+    var nSec = (buildBank.sections||[]).length;
+    var nQ = (buildBank.sections||[]).reduce(function(a,s){ return a+(s.questions||[]).length; },0);
     metaLine = 'بانک سوال · ' + nSec + ' بخش · ' + nQ + ' سوال' + (settings.includeAnswers ? ' · پاسخ‌نامه' : '');
   } else {
-    metaLine = settings.examType + ' · ' + settings.level + ' · ' + settings.duration + ' · ' + (_pdfExamData.questions||[]).length + ' سوال';
+    metaLine = settings.examType + ' · ' + settings.level + ' · ' + settings.duration + ' · ' + ((buildExam && buildExam.questions)||[]).length + ' سوال';
   }
   var entry = {
     id: dlId,
-    examId: _pdfExamData && _pdfExamData.id,
-    name: settings.examName || (_pdfExamData && _pdfExamData.name) || 'PDF',
+    examId: (buildMode==='bank' ? (buildBank && buildBank.id) : (buildExam && buildExam.id)),
+    name: settings.examName || (buildMode==='bank' ? (buildBank && buildBank.name) : (buildExam && buildExam.name)) || 'PDF',
     meta: metaLine,
     status: 'generating',
     progress: 0,
@@ -5029,10 +5089,6 @@ async function startExamPdfDownload(){
   // go to downloads page (skip stack so back won't return to settings)
   var bar = document.getElementById('pdfFixedDlBtn');
   if(bar) bar.classList.remove('show');
-  // keep mode in locals — do NOT reset _pdfMode before build
-  var buildMode = _pdfMode;
-  var buildBank = _pdfBankData;
-  var buildExam = _pdfExamData;
   showPage('downloadsPage', { skipStack: true });
   renderDownloadsList();
 
@@ -5063,50 +5119,55 @@ async function startExamPdfDownload(){
     try{ setPdfBankMode(false); }catch(e){}
     if(_pdfCancelId === dlId) throw new Error('CANCELLED');
 
-    // lock finished — prevent progress bar restart
     window._dlFinished = window._dlFinished || {};
     window._dlFinished[dlId] = true;
     updateDlProgress(dlId, 100, false);
     await yieldToUI();
 
-    var b64 = null;
-    try{ b64 = await blobToBase64(pdfBlob); }catch(e){ console.warn('b64', e); }
+    var b64 = await blobToBase64(pdfBlob);
+    // persist file in IndexedDB (survives logout/login)
+    try{
+      await idbPutPdf(dlId, b64, entry.filename, pdfAccountKey());
+    }catch(e){
+      console.warn('idb put failed', e);
+      toast('هشدار: ذخیره محلی فایل ناموفق بود — فایل روی دستگاه ذخیره می‌شود','err');
+    }
 
-    var items = loadPdfDownloads();
+    var items = loadPdfDownloadsMeta();
     var it = items.find(function(x){ return x.id===dlId; });
     if(it){
       it.status = 'done';
       it.progress = 100;
       it.size = pdfBlob && pdfBlob.size;
-      if(b64){
-        window._pdfBlobMem = window._pdfBlobMem || {};
-        window._pdfBlobMem[dlId] = b64;
-        if(b64.length < 200000) it.data = b64;
-        else delete it.data;
-      }
-      try{ savePdfDownloads(items); }catch(e){}
+      savePdfDownloadsMeta(items);
+    } else {
+      entry.status = 'done';
+      entry.progress = 100;
+      entry.size = pdfBlob && pdfBlob.size;
+      items.unshift(entry);
+      savePdfDownloadsMeta(items);
     }
     renderDownloadsList();
     try{ await triggerBlobDownload(pdfBlob, entry.filename); }catch(e){ console.warn(e); }
-    /* single toast */ toast('دانلود موفقیت‌آمیز بود','ok');
+    toast('دانلود موفقیت‌آمیز بود','ok');
   }catch(e){
     if(String(e && e.message) === 'CANCELLED'){
       return;
     }
     console.error(e);
-    // if already finished successfully, ignore late errors (e.g. storage quota)
     if(window._dlFinished && window._dlFinished[dlId]){
       return;
     }
-    var items = loadPdfDownloads();
+    var items = loadPdfDownloadsMeta();
     var it = items.find(function(x){ return x.id===dlId; });
-    if(it){ it.status = 'error'; it.progress = 0; try{ savePdfDownloads(items); }catch(e2){} }
+    if(it){ it.status = 'error'; it.progress = 0; savePdfDownloadsMeta(items); }
     renderDownloadsList();
-    toast('خطا در ساخت PDF: '+(e.message||e),'err');
+    toast('خطا در ساخت PDF: '+(e && e.message ? e.message : e),'err');
   }finally{
     _pdfGenerating = false;
   }
 }
+
 
 function sanitizeFilename(n){
   return String(n||'exam').replace(/[\/\\?%*:|"<>]/g,'_').replace(/\s+/g,' ').trim().slice(0,80) || 'exam';
@@ -5213,83 +5274,90 @@ function triggerBlobDownload(blob, filename){
   });
 }
 
-function openDownloadedPdf(id){
-  var items = loadPdfDownloads();
-  var it = items.find(function(x){ return x.id===id; });
-  var data = getPdfDownloadData(id);
-  if(!it || !data){ toast('فایل در حافظه این نشست نیست — دوباره دانلود کنید','err'); return; }
-  it.data = data;
-  var filename = it.filename || 'exam.pdf';
-  var pure = (it.data.indexOf(',') >= 0) ? it.data.split(',')[1] : it.data;
-
-  // 1) Android bridge → system app chooser (Adobe, Drive, Chrome, …)
-  if(callAndroidOpen(pure, filename)){
-    return;
-  }
-
-  // 2) Try blob URL in new window / same window
+async function openDownloadedPdf(id){
   try{
-    var blob = base64ToBlob(it.data.indexOf(',')>=0 ? it.data : ('data:application/pdf;base64,'+it.data));
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 60000);
-  }catch(e){ console.warn(e); }
-
-  if(isAndroidWebView() && !hasAndroidOpenBridge()){
-    showAndroidSetupHint('open');
+    var items = loadPdfDownloadsMeta();
+    var it = items.find(function(x){ return x.id===id; });
+    if(!it){ toast('مورد پیدا نشد','err'); return; }
+    toast('در حال آماده‌سازی فایل...','ok');
+    var data = await getPdfDownloadData(id);
+    if(!data){ toast('فایل پیدا نشد — دوباره از منبع دانلود کنید','err'); return; }
+    var filename = it.filename || 'exam.pdf';
+    var pure = (String(data).indexOf(',') >= 0) ? String(data).split(',')[1] : String(data);
+    if(callAndroidOpen(pure, filename)) return;
+    try{
+      var blob = base64ToBlob(String(data).indexOf(',')>=0 ? data : ('data:application/pdf;base64,'+data));
+      var url = URL.createObjectURL(blob);
+      var w = window.open(url, '_blank');
+      if(!w){
+        var a = document.createElement('a');
+        a.href = url; a.download = filename; a.click();
+      }
+    }catch(e){
+      console.error(e);
+      toast('نتوانست فایل را باز کند','err');
+    }
+  }catch(e){
+    console.error(e);
+    toast('خطا در باز کردن فایل','err');
   }
 }
 
-function redownloadPdf(id){
-  var items = loadPdfDownloads();
-  var it = items.find(function(x){ return x.id===id; });
-  var data = getPdfDownloadData(id);
-  if(!it || !data){ toast('فایل در حافظه این نشست نیست — دوباره از منبع دانلود کنید','err'); return; }
-  it.data = data;
-  if(window._dlFinished) delete window._dlFinished[id];
-  if(window._dlMem) window._dlMem[id] = 0;
-  // mark generating and re-render so progress bar exists
-  it.status = 'generating';
-  it.progress = 0;
-  try{ savePdfDownloads(items); }catch(e){}
-  renderDownloadsList();
-  var pct = 0;
-  var timer = setInterval(function(){
-    pct += 10;
-    if(pct >= 88){ clearInterval(timer); }
-    updateDlProgress(id, Math.min(88, pct), true);
-  }, 70);
-  var blob = base64ToBlob(it.data.indexOf(',')>=0 ? it.data : ('data:application/pdf;base64,'+it.data));
-  Promise.resolve(triggerBlobDownload(blob, it.filename||'exam.pdf')).then(function(){
-    clearInterval(timer);
-    if(window._dlFinished) window._dlFinished[id] = true;
-    else { window._dlFinished = {}; window._dlFinished[id] = true; }
-    updateDlProgress(id, 100, false);
-    var items2 = loadPdfDownloads();
-    var it2 = items2.find(function(x){ return x.id===id; });
-    if(it2){ it2.status = 'done'; it2.progress = 100; try{ savePdfDownloads(items2); }catch(e){} }
-    setTimeout(function(){ renderDownloadsList(); }, 280);
-  }).catch(function(e){
-    clearInterval(timer);
-    console.warn(e);
-    var items2 = loadPdfDownloads();
-    var it2 = items2.find(function(x){ return x.id===id; });
-    if(it2){ it2.status = 'done'; try{ savePdfDownloads(items2); }catch(e2){} }
+async function redownloadPdf(id){
+  try{
+    var items = loadPdfDownloadsMeta();
+    var it = items.find(function(x){ return x.id===id; });
+    if(!it){ toast('مورد پیدا نشد','err'); return; }
+    if(window._dlFinished) delete window._dlFinished[id];
+    if(window._dlMem) window._dlMem[id] = 0;
+    it.status = 'generating';
+    it.progress = 0;
+    savePdfDownloadsMeta(items);
     renderDownloadsList();
-  });
+    var data = await getPdfDownloadData(id);
+    if(!data){
+      it.status = 'done';
+      savePdfDownloadsMeta(items);
+      renderDownloadsList();
+      toast('فایل در حافظه نیست — دوباره از منبع دانلود کنید','err');
+      return;
+    }
+    var pct = 0;
+    var timer = setInterval(function(){
+      pct += 10;
+      if(pct >= 88) clearInterval(timer);
+      updateDlProgress(id, Math.min(88, pct), true);
+    }, 60);
+    var blob = base64ToBlob(String(data).indexOf(',')>=0 ? data : ('data:application/pdf;base64,'+data));
+    try{
+      await triggerBlobDownload(blob, it.filename||'exam.pdf');
+    }catch(e){ console.warn(e); }
+    clearInterval(timer);
+    window._dlFinished = window._dlFinished || {};
+    window._dlFinished[id] = true;
+    updateDlProgress(id, 100, false);
+    items = loadPdfDownloadsMeta();
+    it = items.find(function(x){ return x.id===id; });
+    if(it){ it.status = 'done'; it.progress = 100; savePdfDownloadsMeta(items); }
+    setTimeout(function(){ renderDownloadsList(); }, 250);
+    toast('دانلود موفقیت‌آمیز بود','ok');
+  }catch(e){
+    console.error(e);
+    toast('خطا در دانلود مجدد','err');
+    renderDownloadsList();
+  }
 }
+
 function deleteDownloadedPdf(id){
-  var items = loadPdfDownloads().filter(function(x){ return x.id!==id; });
-  savePdfDownloads(items);
+  var items = loadPdfDownloadsMeta().filter(function(x){ return x.id !== id; });
+  savePdfDownloadsMeta(items);
+  try{ idbDeletePdf(id); }catch(e){}
+  if(window._dlFinished) delete window._dlFinished[id];
+  if(window._dlMem) delete window._dlMem[id];
   renderDownloadsList();
   toast('حذف شد','ok');
 }
+
 
 function guideNoAndroidBridge(){ /* disabled - bridge is active */ }
 
