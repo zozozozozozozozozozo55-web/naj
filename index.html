@@ -95,26 +95,52 @@ body.dark .home-logo-img.dark-ic{
 
 /* circular theme reveal from night button */
 .theme-circle{
-  position:fixed;z-index:9998;pointer-events:none;border-radius:50%;
+  position:fixed;z-index:1;pointer-events:none;border-radius:50%;
   transform:translate(-50%,-50%) scale(0);
   opacity:1;will-change:transform;
 }
 .theme-circle.expand{
-  animation:themeCircleExpand .7s cubic-bezier(.22,.75,.25,1) forwards;
+  animation:themeCircleExpand .75s cubic-bezier(.22,.75,.25,1) forwards;
 }
 @keyframes themeCircleExpand{
   0%{transform:translate(-50%,-50%) scale(0);opacity:1}
-  85%{opacity:1}
   100%{transform:translate(-50%,-50%) scale(1);opacity:1}
 }
-body.theme-animating .page,
+/* content stays ABOVE the expanding circle so buttons never vanish */
+.page{
+  position:relative;z-index:2;
+  background:transparent;
+}
+.hamburger,.admin-menu,.menu-overlay,.home-preview-bar,.toast,.err-slide,.rename-backdrop,.modal-bg{
+  z-index:300;
+}
+.night-btn{z-index:400 !important}
+
+/* smooth recolor of UI while circle expands */
+body.theme-animating .btn,
 body.theme-animating .night-btn,
 body.theme-animating .hamburger,
-body.theme-animating .admin-menu{
-  /* keep UI stable during circle expand */
+body.theme-animating .hamburger span,
+body.theme-animating .form-box,
+body.theme-animating .panel,
+body.theme-animating .settings-box,
+body.theme-animating .card,
+body.theme-animating .input-group input,
+body.theme-animating .input-group textarea,
+body.theme-animating select,
+body.theme-animating .home-title-1,
+body.theme-animating .home-title-2,
+body.theme-animating .anim-chip,
+body.theme-animating .list,
+body.theme-animating .opt,
+body.theme-animating .q-card{
+  transition: background-color .5s ease, color .5s ease, border-color .5s ease, box-shadow .5s ease !important;
+}
+body{
+  transition: background-color .55s ease, color .45s ease;
 }
 body.dark .night-btn, body .night-btn{
-  transition:transform .4s cubic-bezier(.22,.8,.25,1), background .35s ease, border-color .35s ease, box-shadow .35s ease;
+  transition:transform .4s cubic-bezier(.22,.8,.25,1), background .45s ease, border-color .45s ease, box-shadow .45s ease, color .45s ease;
 }
 .night-btn.spin{
   animation:nightBtnSpin .6s cubic-bezier(.22,.8,.25,1);
@@ -1987,9 +2013,9 @@ function toggleNight(){
   var goingDark = !document.body.classList.contains('dark');
   var btn = document.getElementById('nightBtn');
   var circle = document.getElementById('themeCircle');
-
-  // target color of the NEXT theme
   var nextBg = goingDark ? '#0f1117' : '#f4f6fb';
+
+  document.body.classList.add('theme-animating');
 
   if(btn){
     btn.classList.remove('spin');
@@ -1997,13 +2023,13 @@ function toggleNight(){
     btn.classList.add('spin');
   }
 
+  // circle expands BEHIND buttons (low z-index) so UI stays visible
   if(circle && btn){
     var r = btn.getBoundingClientRect();
     var cx = r.left + r.width/2;
     var cy = r.top + r.height/2;
-    // cover farthest corner
     var w = window.innerWidth, h = window.innerHeight;
-    var dist = Math.ceil(Math.sqrt(Math.max(cx, w-cx)**2 + Math.max(cy, h-cy)**2)) * 2 + 40;
+    var dist = Math.ceil(Math.sqrt(Math.max(cx, w-cx)**2 + Math.max(cy, h-cy)**2)) * 2 + 48;
     circle.style.left = cx + 'px';
     circle.style.top = cy + 'px';
     circle.style.width = dist + 'px';
@@ -2014,18 +2040,19 @@ function toggleNight(){
     circle.classList.add('expand');
   }
 
-  // swap theme near end of expand so content matches circle color
+  // early theme swap: buttons/cards recolor smoothly while still on top of the circle
   setTimeout(function(){
     document.body.classList.toggle('dark', goingDark);
     try{ localStorage.setItem('exam_dark', goingDark ? '1' : '0'); }catch(e){}
     if(btn) btn.textContent = goingDark ? '☀️' : '🌙';
     updateHomeLogoTheme();
-  }, 380);
+  }, 160);
 
   setTimeout(function(){
     if(circle) circle.classList.remove('expand');
+    document.body.classList.remove('theme-animating');
     window._themeBusy = false;
-  }, 750);
+  }, 780);
 }
 function initTheme(){
   let dark = false;
