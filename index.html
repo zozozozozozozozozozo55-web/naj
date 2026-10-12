@@ -58,9 +58,85 @@ body.dark .opt.wrong{color:#fecaca!important}
 .page.top{justify-content:flex-start;align-items:stretch}
 .logo{font-size:36px;font-weight:800;color:var(--primary2);margin-bottom:6px}
 .subtitle{color:var(--muted);font-size:13px;margin-bottom:28px}
-.home-buttons{display:flex;flex-direction:column;gap:12px;width:100%;max-width:300px;margin:auto}
+.home-buttons{display:flex;flex-direction:column;gap:12px;width:100%;max-width:300px;margin:auto;align-items:center}
 #homePage.page.active,#userMainPage.page.active,#managerPage.page.active,#adminPage.page.active{
   justify-content:center;min-height:100vh;min-height:100dvh
+}
+
+/* ===== Home logo animation ===== */
+.home-logo-wrap{
+  position:relative;width:160px;height:160px;margin:0 auto 18px;
+  overflow:visible;
+}
+.home-logo-svg{width:160px;height:160px;display:block;overflow:visible}
+.home-logo-svg .book-left,
+.home-logo-svg .book-right{
+  transform-box:fill-box;
+  transform-origin:center bottom;
+  transition:transform var(--book-dur, .85s) cubic-bezier(.22,.9,.28,1);
+}
+.home-logo-svg .book-left{transform:scaleX(.15) rotate(0deg)}
+.home-logo-svg .book-right{transform:scaleX(.15) rotate(0deg)}
+.home-logo-wrap.play .book-left{transform:scaleX(1) rotate(-6deg)}
+.home-logo-wrap.play .book-right{transform:scaleX(1) rotate(6deg)}
+.home-logo-svg .globe-arc,
+.home-logo-svg .globe-line{
+  opacity:0;stroke-dasharray:220;stroke-dashoffset:220;
+  transition:opacity var(--globe-dur, .7s) ease, stroke-dashoffset var(--globe-dur, .7s) ease;
+}
+.home-logo-wrap.globe .globe-arc,
+.home-logo-wrap.globe .globe-line{
+  opacity:1;stroke-dashoffset:0;
+}
+.home-logo-svg .heli{
+  opacity:0;
+  transform:translate(-140px, 8px);
+  transition:transform var(--heli-dur, 1.2s) cubic-bezier(.2,.8,.2,1), opacity .35s ease;
+}
+.home-logo-wrap.heli .heli{
+  opacity:1;transform:translate(0,0);
+}
+.home-logo-svg .rotor{
+  transform-origin:78px 62px;
+}
+.home-logo-wrap.heli .rotor{
+  animation:rotorSpin .12s linear infinite;
+}
+@keyframes rotorSpin{to{transform:rotate(360deg)}}
+.home-title-1,.home-title-2{
+  text-align:center;margin:0 auto;max-width:300px;
+  opacity:0;transform:translateY(8px);
+  filter:blur(2px);
+  transition:opacity var(--text-dur, 1s) cubic-bezier(.22,.8,.25,1),
+              transform var(--text-dur, 1s) cubic-bezier(.22,.8,.25,1),
+              filter var(--text-dur, 1s) ease;
+}
+.home-title-1{
+  font-size:18px;font-weight:800;color:var(--primary2);margin-bottom:6px;
+}
+.home-title-2{
+  font-size:13px;font-weight:500;color:var(--muted);margin-bottom:16px;opacity:0;
+}
+.home-title-1.show,.home-title-2.show{
+  opacity:1;transform:translateY(0);filter:blur(0);
+}
+.home-title-2.show{opacity:.72}
+.home-title-1.wave,.home-title-2.wave{
+  animation:titleWave var(--text-dur, 1s) ease both;
+}
+@keyframes titleWave{
+  0%{opacity:0;transform:translateY(10px) scale(.98);filter:blur(3px)}
+  40%{opacity:.35;filter:blur(1px)}
+  70%{opacity:.75;filter:blur(.3px)}
+  100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
+}
+.home-title-2.wave{
+  animation-name:titleWaveSoft;
+}
+@keyframes titleWaveSoft{
+  0%{opacity:0;transform:translateY(10px);filter:blur(3px)}
+  40%{opacity:.2;filter:blur(1px)}
+  100%{opacity:.72;transform:translateY(0);filter:blur(0)}
 }
 #userMainPage,#managerPage,#adminPage{position:relative}
 #userMainPage .grid-btns,#managerPage .grid-btns,#adminPage .grid-btns{margin-top:12px}
@@ -789,12 +865,41 @@ body.dark
 
 <!-- HOME -->
 <div class="page active" id="homePage">
-  <div class="home-buttons" style="align-items:center">
-    <div style="text-align:center;margin-bottom:8px">
-      <div style="width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,var(--primary),var(--primary2));margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;font-weight:800;box-shadow:var(--shadow)">IPA</div>
-      <div style="font-size:20px;font-weight:800;color:var(--primary2);margin-bottom:4px">آکادمی آزمون هواپیما</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:18px">Aircraft Maintenance Exam</div>
+  <div class="home-buttons">
+    <div class="home-logo-wrap" id="homeLogoWrap" aria-hidden="true">
+      <svg class="home-logo-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <!-- open book -->
+        <g class="book">
+          <path class="book-left" d="M100 105 C78 108 52 112 40 118 L40 155 C55 148 78 145 100 145 Z" fill="#7c6cf0" opacity=".95"/>
+          <path class="book-right" d="M100 105 C122 108 148 112 160 118 L160 155 C145 148 122 145 100 145 Z" fill="#6c5ce7" opacity=".95"/>
+          <path d="M42 152 C58 146 78 144 100 144 C122 144 142 146 158 152" fill="none" stroke="#a29bfe" stroke-width="2" opacity=".5"/>
+          <!-- book lines -->
+          <path class="book-left" d="M55 125 L90 122" stroke="#c4b5fd" stroke-width="1.5" fill="none" opacity=".7"/>
+          <path class="book-left" d="M52 135 L88 132" stroke="#c4b5fd" stroke-width="1.5" fill="none" opacity=".55"/>
+          <path class="book-right" d="M110 122 L145 125" stroke="#c4b5fd" stroke-width="1.5" fill="none" opacity=".7"/>
+          <path class="book-right" d="M112 132 L148 135" stroke="#c4b5fd" stroke-width="1.5" fill="none" opacity=".55"/>
+        </g>
+        <!-- globe arc + grid -->
+        <g class="globe" fill="none" stroke="#8b7cf7" stroke-width="3" stroke-linecap="round">
+          <path class="globe-arc" d="M48 95 A55 55 0 0 1 152 95"/>
+          <path class="globe-line" d="M100 42 L100 100" stroke-width="2" opacity=".7"/>
+          <path class="globe-line" d="M62 58 Q100 72 138 58" stroke-width="1.8" opacity=".55"/>
+          <path class="globe-line" d="M55 78 Q100 92 145 78" stroke-width="1.8" opacity=".45"/>
+        </g>
+        <!-- helicopter -->
+        <g class="heli">
+          <ellipse class="rotor" cx="78" cy="62" rx="28" ry="3.5" fill="#b8b0ff" opacity=".85"/>
+          <path d="M70 68 L105 72 L108 80 L72 78 Z" fill="#d4d0f0"/>
+          <path d="M95 74 L118 70 L120 76 L100 80 Z" fill="#c8c2ef"/>
+          <circle cx="88" cy="74" r="5" fill="#9b8ef0"/>
+          <path d="M100 78 L104 92" stroke="#a89ef5" stroke-width="2"/>
+          <path d="M72 78 L68 90" stroke="#a89ef5" stroke-width="2"/>
+          <circle cx="72" cy="66" r="2.5" fill="#ff4d6d"/>
+        </g>
+      </svg>
     </div>
+    <div class="home-title-1" id="homeTitle1"></div>
+    <div class="home-title-2" id="homeTitle2"></div>
     <button class="btn btn-primary" onclick="showPage('loginPage')">ورود</button>
     <button class="btn btn-secondary" onclick="openRegister()">ثبت نام</button>
   </div>
@@ -1165,6 +1270,51 @@ body.dark
       </div>
     </div>
 
+    <div class="settings-box" onclick="openHomePageSettings()">
+      <div class="sb-head">
+        <div style="flex:1;text-align:right;padding-left:10px">
+          <div class="sb-title">تنظیمات صفحه اصلی</div>
+          <div class="sb-desc">انیمیشن لوگو و نوشته‌های بالای دکمه ورود</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- HOME PAGE SETTINGS (manager) -->
+<div class="page top" id="homeSettingsPage">
+  <button type="button" class="btn btn-secondary btn-sm back-corner" onclick="openManagerSettings()">برگشت</button>
+  <h2 style="color:var(--primary2);font-size:17px;margin:48px auto 14px;max-width:560px;width:100%;text-align:center">تنظیمات صفحه اصلی</h2>
+  <div class="panel" style="margin:0 auto;max-width:560px">
+    <div class="input-group">
+      <label>نوشته اول (پررنگ‌تر)</label>
+      <input type="text" id="homeText1" placeholder="مثلاً: آکادمی آزمون هواپیما" dir="auto">
+    </div>
+    <div class="input-group">
+      <label>نوشته دوم (کم‌رنگ‌تر)</label>
+      <input type="text" id="homeText2" placeholder="مثلاً: Aircraft Maintenance Exam" dir="auto">
+    </div>
+    <h3 style="font-size:14px;color:var(--muted);margin:16px 0 10px">زمان انیمیشن‌ها (میلی‌ثانیه)</h3>
+    <div class="input-group">
+      <label>باز شدن کتاب</label>
+      <input type="number" id="homeDurBook" min="200" max="5000" step="50" value="850">
+    </div>
+    <div class="input-group">
+      <label>ظاهر شدن دایره / خطوط کره</label>
+      <input type="number" id="homeDurGlobe" min="200" max="5000" step="50" value="700">
+    </div>
+    <div class="input-group">
+      <label>پرواز هلیکوپتر</label>
+      <input type="number" id="homeDurHeli" min="300" max="5000" step="50" value="1200">
+    </div>
+    <div class="input-group">
+      <label>موج نوشته‌ها</label>
+      <input type="number" id="homeDurText" min="200" max="5000" step="50" value="1000">
+    </div>
+    <div class="hint" style="margin-bottom:14px">هر عدد یعنی مدت همان مرحله به میلی‌ثانیه (۱۰۰۰ = یک ثانیه)</div>
+    <button class="btn btn-primary" onclick="saveHomePageSettings()">ذخیره</button>
+    <button class="btn btn-secondary" style="margin-top:8px" onclick="previewHomeAnimation()">پیش‌نمایش انیمیشن</button>
   </div>
 </div>
 
@@ -1578,6 +1728,9 @@ function showPage(id, opts){
       else if(pickIds[id] && pickSelection.length) g.classList.add('show');
     }
   }catch(e){}
+  if(id === 'homePage'){
+    try{ playHomeAnimation(); }catch(e){}
+  }
 }
 /** Called from Android back button. Returns true if handled. */
 function handleAndroidBack(){
@@ -4416,6 +4569,154 @@ function openManagerSettings(){
   var r = document.getElementById('registerToggle');
   if(r) r.checked = isRegisterEnabled();
 }
+
+/* ========== Home page animation & settings ========== */
+var HOME_SETTINGS_KEY = 'ipa_home_page_settings';
+var _homeAnimTimer = null;
+function defaultHomeSettings(){
+  return {
+    text1: '',
+    text2: '',
+    durBook: 850,
+    durGlobe: 700,
+    durHeli: 1200,
+    durText: 1000
+  };
+}
+function loadHomeSettingsLocal(){
+  try{
+    var o = JSON.parse(localStorage.getItem(HOME_SETTINGS_KEY)||'{}') || {};
+    var d = defaultHomeSettings();
+    return {
+      text1: (o.text1 != null ? String(o.text1) : d.text1),
+      text2: (o.text2 != null ? String(o.text2) : d.text2),
+      durBook: Math.max(200, parseInt(o.durBook,10)||d.durBook),
+      durGlobe: Math.max(200, parseInt(o.durGlobe,10)||d.durGlobe),
+      durHeli: Math.max(300, parseInt(o.durHeli,10)||d.durHeli),
+      durText: Math.max(200, parseInt(o.durText,10)||d.durText)
+    };
+  }catch(e){ return defaultHomeSettings(); }
+}
+function saveHomeSettingsLocal(s){
+  try{ localStorage.setItem(HOME_SETTINGS_KEY, JSON.stringify(s||{})); }catch(e){}
+}
+async function hydrateHomeSettingsFromServer(){
+  try{
+    var s = await loadSiteConfig(HOME_SETTINGS_KEY, loadHomeSettingsLocal());
+    if(s && typeof s === 'object'){
+      saveHomeSettingsLocal(s);
+    }
+  }catch(e){}
+}
+function applyHomeTexts(s){
+  s = s || loadHomeSettingsLocal();
+  var t1 = document.getElementById('homeTitle1');
+  var t2 = document.getElementById('homeTitle2');
+  if(t1){
+    t1.textContent = s.text1 || '';
+    t1.style.display = (s.text1 && String(s.text1).trim()) ? '' : 'none';
+  }
+  if(t2){
+    t2.textContent = s.text2 || '';
+    t2.style.display = (s.text2 && String(s.text2).trim()) ? '' : 'none';
+  }
+}
+function resetHomeAnimationClasses(){
+  var wrap = document.getElementById('homeLogoWrap');
+  var t1 = document.getElementById('homeTitle1');
+  var t2 = document.getElementById('homeTitle2');
+  if(wrap){
+    wrap.classList.remove('play','globe','heli');
+  }
+  if(t1){ t1.classList.remove('show','wave'); }
+  if(t2){ t2.classList.remove('show','wave'); }
+}
+function playHomeAnimation(){
+  var s = loadHomeSettingsLocal();
+  applyHomeTexts(s);
+  resetHomeAnimationClasses();
+  if(_homeAnimTimer){ try{ clearTimeout(_homeAnimTimer); }catch(e){} _homeAnimTimer=null; }
+
+  var wrap = document.getElementById('homeLogoWrap');
+  var t1 = document.getElementById('homeTitle1');
+  var t2 = document.getElementById('homeTitle2');
+  if(!wrap) return;
+
+  // apply durations as CSS variables
+  var root = wrap;
+  root.style.setProperty('--book-dur', (s.durBook/1000)+'s');
+  root.style.setProperty('--globe-dur', (s.durGlobe/1000)+'s');
+  root.style.setProperty('--heli-dur', (s.durHeli/1000)+'s');
+  if(t1) t1.style.setProperty('--text-dur', (s.durText/1000)+'s');
+  if(t2) t2.style.setProperty('--text-dur', (s.durText/1000)+'s');
+
+  // force reflow then start sequence
+  void wrap.offsetWidth;
+  // 1) book opens
+  wrap.classList.add('play');
+  var t = s.durBook;
+  _homeAnimTimer = setTimeout(function(){
+    // 2) globe
+    wrap.classList.add('globe');
+    _homeAnimTimer = setTimeout(function(){
+      // 3) helicopter flies in
+      wrap.classList.add('heli');
+      _homeAnimTimer = setTimeout(function(){
+        // 4) texts wave in
+        if(t1 && t1.style.display !== 'none'){ t1.classList.add('wave','show'); }
+        setTimeout(function(){
+          if(t2 && t2.style.display !== 'none'){ t2.classList.add('wave','show'); }
+        }, Math.min(180, s.durText*0.15));
+      }, s.durHeli);
+    }, s.durGlobe);
+  }, Math.max(40, s.durBook*0.15));
+}
+function openHomePageSettings(){
+  showPage('homeSettingsPage');
+  var s = loadHomeSettingsLocal();
+  var el;
+  el = document.getElementById('homeText1'); if(el) el.value = s.text1 || '';
+  el = document.getElementById('homeText2'); if(el) el.value = s.text2 || '';
+  el = document.getElementById('homeDurBook'); if(el) el.value = s.durBook;
+  el = document.getElementById('homeDurGlobe'); if(el) el.value = s.durGlobe;
+  el = document.getElementById('homeDurHeli'); if(el) el.value = s.durHeli;
+  el = document.getElementById('homeDurText'); if(el) el.value = s.durText;
+  // hydrate from server in background
+  try{
+    hydrateHomeSettingsFromServer().then(function(){
+      var s2 = loadHomeSettingsLocal();
+      el = document.getElementById('homeText1'); if(el && !el.value) el.value = s2.text1 || '';
+      el = document.getElementById('homeText2'); if(el && !el.value) el.value = s2.text2 || '';
+    });
+  }catch(e){}
+}
+function saveHomePageSettings(){
+  var s = {
+    text1: (document.getElementById('homeText1')||{}).value || '',
+    text2: (document.getElementById('homeText2')||{}).value || '',
+    durBook: Math.max(200, parseInt((document.getElementById('homeDurBook')||{}).value,10)||850),
+    durGlobe: Math.max(200, parseInt((document.getElementById('homeDurGlobe')||{}).value,10)||700),
+    durHeli: Math.max(300, parseInt((document.getElementById('homeDurHeli')||{}).value,10)||1200),
+    durText: Math.max(200, parseInt((document.getElementById('homeDurText')||{}).value,10)||1000)
+  };
+  saveHomeSettingsLocal(s);
+  try{ saveSiteConfig(HOME_SETTINGS_KEY, s); }catch(e){}
+  applyHomeTexts(s);
+  toast('تنظیمات صفحه اصلی ذخیره شد','ok');
+}
+function previewHomeAnimation(){
+  // save current form values temporarily for preview
+  var s = {
+    text1: (document.getElementById('homeText1')||{}).value || '',
+    text2: (document.getElementById('homeText2')||{}).value || '',
+    durBook: Math.max(200, parseInt((document.getElementById('homeDurBook')||{}).value,10)||850),
+    durGlobe: Math.max(200, parseInt((document.getElementById('homeDurGlobe')||{}).value,10)||700),
+    durHeli: Math.max(300, parseInt((document.getElementById('homeDurHeli')||{}).value,10)||1200),
+    durText: Math.max(200, parseInt((document.getElementById('homeDurText')||{}).value,10)||1000)
+  };
+  saveHomeSettingsLocal(s);
+  showPage('homePage');
+}
 function onPdfSettingsToggle(on){
   setPdfSettingsEnabled(!!on);
   toast(on ? 'صفحه تنظیمات دانلود فعال شد' : 'صفحه تنظیمات دانلود خاموش شد','ok');
@@ -5907,6 +6208,8 @@ window.addEventListener('offline', function(){
 initTheme();
 if(typeof initPassEyes==='function') initPassEyes();
 updateOfflineUI();
+try{ applyHomeTexts(loadHomeSettingsLocal()); }catch(e){}
+try{ hydrateHomeSettingsFromServer().then(function(){ applyHomeTexts(loadHomeSettingsLocal()); }); }catch(e){}
 showPage('homePage');
 </script>
 </body>
