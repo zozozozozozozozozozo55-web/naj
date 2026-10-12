@@ -782,9 +782,19 @@ body.dark
 <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 <div class="admin-menu" id="mainMenu"></div>
 
+<!-- OFFLINE BANNER -->
+<div id="offlineBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#dc2626;color:#fff;text-align:center;padding:10px 14px;font-size:13px;font-weight:600;box-shadow:0 2px 12px rgba(0,0,0,.15)">
+  اتصال اینترنت قطع است — برخی امکانات در دسترس نیست
+</div>
+
 <!-- HOME -->
 <div class="page active" id="homePage">
-  <div class="home-buttons">
+  <div class="home-buttons" style="align-items:center">
+    <div style="text-align:center;margin-bottom:8px">
+      <div style="width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,var(--primary),var(--primary2));margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;font-weight:800;box-shadow:var(--shadow)">IPA</div>
+      <div style="font-size:20px;font-weight:800;color:var(--primary2);margin-bottom:4px">آکادمی آزمون هواپیما</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:18px">Aircraft Maintenance Exam</div>
+    </div>
     <button class="btn btn-primary" onclick="showPage('loginPage')">ورود</button>
     <button class="btn btn-secondary" onclick="openRegister()">ثبت نام</button>
   </div>
@@ -1886,7 +1896,12 @@ async function doLogin(){
     try{ loadExamFlagsMap().then(function(m){ window._examFlagsMap=m||{}; }).catch(function(){}); }catch(e){}
   }catch(e){
     console.error(e);
-    err.style.color=''; err.textContent='خطا در ورود';
+    err.style.color='';
+    if(!isOnline() || (e && /offline|failed|network|Failed to fetch/i.test(String(e&&e.message||e)))){
+      err.textContent='اتصال اینترنت برقرار نیست';
+    } else {
+      err.textContent='خطا در ورود';
+    }
   } finally {
     window._userLoggingIn = false;
     var btn = document.querySelector('#loginPage .btn-primary');
@@ -5852,8 +5867,46 @@ document.addEventListener('click', function(e){
 })();
 
 
+/* ========== Offline detection ========== */
+function updateOfflineUI(){
+  var offline = (typeof navigator !== 'undefined' && navigator.onLine === false);
+  var ban = document.getElementById('offlineBanner');
+  if(ban){
+    ban.style.display = offline ? 'block' : 'none';
+    try{ document.body.style.paddingTop = offline ? '40px' : ''; }catch(e){}
+  }
+}
+function isOnline(){
+  try{ return navigator.onLine !== false; }catch(e){ return true; }
+}
+window.addEventListener('online', function(){
+  updateOfflineUI();
+  try{ if(typeof toast==='function') toast('اتصال اینترنت برقرار شد','ok'); }catch(e){}
+});
+window.addEventListener('offline', function(){
+  updateOfflineUI();
+  try{ if(typeof toast==='function') toast('اتصال اینترنت قطع شد','err'); }catch(e){}
+});
+// Improve network error messages for Supabase calls
+(function(){
+  var _origFetch = window.fetch;
+  if(!_origFetch) return;
+  window.fetch = function(){
+    if(!isOnline()){
+      return Promise.reject(new TypeError('offline'));
+    }
+    return _origFetch.apply(this, arguments).catch(function(err){
+      if(!isOnline() || (err && /failed|network|offline|Failed to fetch/i.test(String(err&&err.message||err)))){
+        try{ if(typeof toast==='function') toast('اتصال اینترنت برقرار نیست','err'); }catch(e){}
+      }
+      throw err;
+    });
+  };
+})();
+
 initTheme();
 if(typeof initPassEyes==='function') initPassEyes();
+updateOfflineUI();
 showPage('homePage');
 </script>
 </body>
